@@ -7,6 +7,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.os.SystemClock
 import android.telecom.Call
 import android.telecom.CallAudioState
 import android.telecom.InCallService
@@ -187,7 +188,10 @@ internal object MoogsCallRegistry {
             "speaker" to speaker,
             "canHold" to (details?.can(Call.Details.CAPABILITY_SUPPORT_HOLD) == true),
             "isHeld" to (state == Call.STATE_HOLDING),
-            "connectTimeMillis" to (details?.connectTimeMillis ?: 0L)
+            "connectedDurationMillis" to if (state == Call.STATE_ACTIVE || state == Call.STATE_HOLDING) {
+                val connectedAt = details?.connectTimeMillis ?: 0L
+                if (connectedAt > 0L) (SystemClock.elapsedRealtime() - connectedAt).coerceAtLeast(0L) else 0L
+            } else 0L
         )
     }
 
