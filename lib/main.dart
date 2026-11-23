@@ -224,7 +224,7 @@ class _DialerHomePageState extends State<DialerHomePage> {
                       color: MoogsTheme.ice.withValues(alpha: .16),
                       border: Border.all(color: MoogsTheme.ice.withValues(alpha: .5)),
                     ),
-                    child: Icon(Icons.call_rounded, color: MoogsTheme.ice),
+                    child: const Icon(Icons.call_rounded, color: MoogsTheme.ice),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
