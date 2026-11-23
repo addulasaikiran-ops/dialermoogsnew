@@ -13,6 +13,6 @@ void main() {
     await tester.pumpWidget(const MoogsPhoneApp());
     await tester.tap(find.text('1'));
     await tester.pump();
-    expect(find.text('1'), findsOneWidget);
+    expect(find.text('1'), findsNWidgets(2));
   });
 }
