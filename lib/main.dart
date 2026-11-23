@@ -328,16 +328,16 @@ class _DialerHomePageState extends State<DialerHomePage> {
       Text(_number.isEmpty ? 'Enter a number' : _number, maxLines: 1, overflow: TextOverflow.ellipsis,
         style: Theme.of(context).textTheme.headlineMedium?.copyWith(color: foreground, fontWeight: FontWeight.w400, letterSpacing: 2)),
       const SizedBox(height: 20),
-      SizedBox(width: 300, child: GridView.count(
+      SizedBox(width: 276, child: GridView.count(
         crossAxisCount: 3, shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
-        mainAxisSpacing: 10, crossAxisSpacing: 18, childAspectRatio: 1.18,
+        mainAxisSpacing: 7, crossAxisSpacing: 14, childAspectRatio: 1.38,
         children: _digits.map((digit) => _KeypadButton(digit: digit, onTap: () => _append(digit))).toList(),
       )),
       const SizedBox(height: 16),
       Row(mainAxisAlignment: MainAxisAlignment.center, children: [
         const SizedBox(width: 64),
         InkWell(onTap: _placeCall, customBorder: const CircleBorder(), child: Container(
-          width: 66, height: 66, decoration: BoxDecoration(shape: BoxShape.circle, color: MoogsTheme.call,
+          width: 60, height: 60, decoration: BoxDecoration(shape: BoxShape.circle, color: MoogsTheme.call,
             boxShadow: [BoxShadow(color: MoogsTheme.call.withValues(alpha: .22), blurRadius: 16, offset: const Offset(0, 5))]),
           child: const Icon(Icons.call_rounded, color: Colors.white, size: 28))),
         SizedBox(width: 64, child: IconButton(
