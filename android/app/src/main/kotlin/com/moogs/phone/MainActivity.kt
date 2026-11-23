@@ -8,6 +8,9 @@ import android.os.Bundle
 import android.Manifest
 import android.content.pm.PackageManager
 import android.telecom.TelecomManager
+import android.provider.ContactsContract
+import android.provider.CallLog
+import android.database.Cursor
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.EventChannel
@@ -17,6 +20,10 @@ class MainActivity : FlutterActivity() {
     private val channelName = "com.moogs.phone/telecom"
     private val eventName = "com.moogs.phone/call_events"
     private val requestDialerRole = 4102
+    private val phoneDataChannel = "com.moogs.phone/phone_data"
+    private val contactsPermissionRequest = 4201
+    private val callLogPermissionRequest = 4202
+    private var pendingPermissionResult: MethodChannel.Result? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -73,6 +80,35 @@ class MainActivity : FlutterActivity() {
                 }
             }
 
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, phoneDataChannel)
+            .setMethodCallHandler { call, result ->
+                try {
+                    when (call.method) {
+                        "requestPermission" -> requestPhoneDataPermission(call.argument<String>("kind") ?: "", result)
+                        "getContacts" -> {
+                            if (!hasPermission(Manifest.permission.READ_CONTACTS)) result.error("CONTACTS_PERMISSION", "Contacts permission is required", null)
+                            else result.success(readContacts())
+                        }
+                        "getRecents" -> {
+                            if (!hasPermission(Manifest.permission.READ_CALL_LOG)) result.error("CALL_LOG_PERMISSION", "Call history permission is required", null)
+                            else result.success(readRecents())
+                        }
+                        "getFavorites" -> result.success(readFavorites())
+                        "setFavorite" -> {
+                            val number = call.argument<String>("number")?.trim().orEmpty()
+                            val favorite = call.argument<Boolean>("favorite") ?: false
+                            if (number.isNotEmpty()) updateFavorite(number, favorite)
+                            result.success(null)
+                        }
+                        else -> result.notImplemented()
+                    }
+                } catch (error: SecurityException) {
+                    result.error("PHONE_DATA_PERMISSION", error.message, null)
+                } catch (error: Exception) {
+                    result.error("PHONE_DATA_ERROR", error.message, null)
+                }
+            }
+
         EventChannel(flutterEngine.dartExecutor.binaryMessenger, eventName)
             .setStreamHandler(object : EventChannel.StreamHandler {
                 override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
@@ -83,6 +119,121 @@ class MainActivity : FlutterActivity() {
                     MoogsCallRegistry.eventSink = null
                 }
             })
+    }
+
+    private fun hasPermission(permission: String): Boolean =
+        checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED
+
+    private fun requestPhoneDataPermission(kind: String, result: MethodChannel.Result) {
+        val permission = when (kind) {
+            "contacts" -> Manifest.permission.READ_CONTACTS
+            "callLog" -> Manifest.permission.READ_CALL_LOG
+            else -> {
+                result.error("UNKNOWN_PERMISSION", "Unknown phone data permission", null)
+                return
+            }
+        }
+        if (hasPermission(permission)) {
+            result.success(true)
+            return
+        }
+        if (pendingPermissionResult != null) {
+            result.error("PERMISSION_PENDING", "Another permission request is already open", null)
+            return
+        }
+        pendingPermissionResult = result
+        requestPermissions(
+            arrayOf(permission),
+            if (kind == "contacts") contactsPermissionRequest else callLogPermissionRequest
+        )
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == contactsPermissionRequest || requestCode == callLogPermissionRequest) {
+            val granted = grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED
+            pendingPermissionResult?.success(granted)
+            pendingPermissionResult = null
+        }
+    }
+
+    private fun readContacts(): List<Map<String, Any?>> {
+        val rows = mutableListOf<Map<String, Any?>>()
+        val projection = arrayOf(
+            ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,
+            ContactsContract.CommonDataKinds.Phone.NUMBER
+        )
+        contentResolver.query(
+            ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
+            projection, null, null,
+            ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME + " COLLATE NOCASE ASC"
+        )?.use { cursor ->
+            val nameIndex = cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME)
+            val numberIndex = cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER)
+            while (cursor.moveToNext()) {
+                val number = cursor.getString(numberIndex)?.trim().orEmpty()
+                if (number.isNotEmpty()) rows.add(mapOf(
+                    "name" to cursor.getString(nameIndex).orEmpty(),
+                    "number" to number,
+                    "dateMillis" to 0L,
+                    "callType" to 0
+                ))
+            }
+        }
+        return rows.distinctBy { it["number"] }
+    }
+
+    private fun readRecents(): List<Map<String, Any?>> {
+        val rows = mutableListOf<Map<String, Any?>>()
+        val projection = arrayOf(
+            CallLog.Calls.CACHED_NAME,
+            CallLog.Calls.NUMBER,
+            CallLog.Calls.DATE,
+            CallLog.Calls.TYPE
+        )
+        contentResolver.query(
+            CallLog.Calls.CONTENT_URI,
+            projection, null, null, CallLog.Calls.DATE + " DESC"
+        )?.use { cursor ->
+            val nameIndex = cursor.getColumnIndex(CallLog.Calls.CACHED_NAME)
+            val numberIndex = cursor.getColumnIndex(CallLog.Calls.NUMBER)
+            val dateIndex = cursor.getColumnIndex(CallLog.Calls.DATE)
+            val typeIndex = cursor.getColumnIndex(CallLog.Calls.TYPE)
+            while (cursor.moveToNext()) {
+                rows.add(mapOf(
+                    "name" to cursor.getString(nameIndex).orEmpty(),
+                    "number" to cursor.getString(numberIndex).orEmpty(),
+                    "dateMillis" to cursor.getLong(dateIndex),
+                    "callType" to cursor.getInt(typeIndex)
+                ))
+            }
+        }
+        return rows
+    }
+
+    private fun favoritesPreferences() = getSharedPreferences("moogs_phone_favorites", MODE_PRIVATE)
+
+    private fun readFavorites(): List<Map<String, Any?>> {
+        val numbers = favoritesPreferences().getStringSet("numbers", emptySet()).orEmpty()
+        val names = favoritesPreferences().getStringSet("names", emptySet()).orEmpty()
+        val nameByNumber = names.mapNotNull {
+            val split = it.indexOf('|')
+            if (split > 0) it.substring(0, split) to it.substring(split + 1) else null
+        }.toMap()
+        return numbers.map { number ->
+            mapOf("name" to (nameByNumber[number] ?: ""), "number" to number, "dateMillis" to 0L, "callType" to 0)
+        }.sortedBy { (it["name"] as String).lowercase() }
+    }
+
+    private fun updateFavorite(number: String, favorite: Boolean) {
+        val prefs = favoritesPreferences()
+        val numbers = prefs.getStringSet("numbers", emptySet()).orEmpty().toMutableSet()
+        if (favorite) numbers.add(number) else numbers.remove(number)
+        prefs.edit().putStringSet("numbers", numbers).apply()
     }
 
     private fun requestDialerRole(result: MethodChannel.Result) {
