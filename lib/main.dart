@@ -137,7 +137,7 @@ class PhoneDataBridge {
       _entries(await _channel.invokeListMethod<dynamic>('getFavorites'));
 
   static Future<void> setFavorite(PhoneEntry entry, bool favorite) =>
-      _channel.invokeMethod<void>('setFavorite', {'number': entry.number, 'favorite': favorite});
+      _channel.invokeMethod<void>('setFavorite', {'number': entry.number, 'name': entry.displayName, 'favorite': favorite});
 
   static List<PhoneEntry> _entries(List<dynamic>? values) => (values ?? const [])
       .whereType<Map>()
