@@ -1,24 +1,102 @@
 package com.moogs.phone
 
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.content.Context
+import android.content.Intent
+import android.os.Build
 import android.telecom.Call
 import android.telecom.CallAudioState
 import android.telecom.InCallService
 import android.telecom.VideoProfile
 
 class MoogsInCallService : InCallService() {
+    override fun onCreate() {
+        super.onCreate()
+        ensureCallChannel()
+    }
+
     override fun onCallAdded(call: Call) {
         super.onCallAdded(call)
         MoogsCallRegistry.attach(call, this)
+        updateCallNotification(call)
     }
 
     override fun onCallRemoved(call: Call) {
         MoogsCallRegistry.detach(call)
+        cancelCallNotification()
         super.onCallRemoved(call)
     }
 
     override fun onCallAudioStateChanged(audioState: CallAudioState) {
         super.onCallAudioStateChanged(audioState)
         MoogsCallRegistry.publish()
+    }
+
+    internal fun updateCallNotification(call: Call) {
+        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val intent = Intent(this, MainActivity::class.java).apply {
+            action = "com.moogs.phone.OPEN_CALL"
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val pending = PendingIntent.getActivity(
+            this, 7001, intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val incoming = call.state == Call.STATE_RINGING
+        val name = call.details?.callerDisplayName
+            ?: call.details?.handle?.schemeSpecificPart
+            ?: "Unknown caller"
+        val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            Notification.Builder(this, CALL_CHANNEL)
+        } else {
+            @Suppress("DEPRECATION")
+            Notification.Builder(this)
+        }
+        val notification = builder
+            .setSmallIcon(android.R.drawable.sym_action_call)
+            .setContentTitle(if (incoming) "Incoming call" else "Ongoing call")
+            .setContentText(name)
+            .setCategory(Notification.CATEGORY_CALL)
+            .setPriority(Notification.PRIORITY_MAX)
+            .setVisibility(Notification.VISIBILITY_PUBLIC)
+            .setOngoing(!incoming)
+            .setAutoCancel(false)
+            .setContentIntent(pending)
+            .setFullScreenIntent(if (incoming) pending else null, incoming)
+            .build()
+        try {
+            manager.notify(CALL_NOTIFICATION_ID, notification)
+        } catch (_: SecurityException) {
+            // Android 13+ notification permission may be denied. Telecom still owns call state.
+        }
+    }
+
+    private fun ensureCallChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            val channel = NotificationChannel(
+                CALL_CHANNEL,
+                "Calls",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Incoming and ongoing call notifications"
+                lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+            }
+            manager.createNotificationChannel(channel)
+        }
+    }
+
+    private fun cancelCallNotification() {
+        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        manager.cancel(CALL_NOTIFICATION_ID)
+    }
+
+    companion object {
+        const val CALL_CHANNEL = "moogs_calls"
+        const val CALL_NOTIFICATION_ID = 7002
     }
 }
 
@@ -30,12 +108,13 @@ internal object MoogsCallRegistry {
         private set
     @Volatile var speaker: Boolean = false
         private set
-    @Volatile var audioAvailable: Boolean = false
-        private set
     @Volatile var eventSink: ((Map<String, Any?>) -> Unit)? = null
 
     private val callback = object : Call.Callback() {
-        override fun onStateChanged(call: Call, state: Int) = publish()
+        override fun onStateChanged(call: Call, state: Int) {
+            service?.updateCallNotification(call)
+            publish()
+        }
         override fun onDetailsChanged(call: Call, details: Call.Details) = publish()
         override fun onPostDialWait(call: Call, remainingPostDialSequence: String) = publish()
     }
@@ -70,17 +149,9 @@ internal object MoogsCallRegistry {
         publish()
     }
 
-    fun answer() {
-        currentCall?.answer(VideoProfile.STATE_AUDIO_ONLY)
-    }
-
-    fun reject() {
-        currentCall?.reject(false, null)
-    }
-
-    fun disconnect() {
-        currentCall?.disconnect()
-    }
+    fun answer() { currentCall?.answer(VideoProfile.STATE_AUDIO_ONLY) }
+    fun reject() { currentCall?.reject(false, null) }
+    fun disconnect() { currentCall?.disconnect() }
 
     fun hold(value: Boolean) {
         val call = currentCall ?: return
@@ -93,24 +164,18 @@ internal object MoogsCallRegistry {
         }
     }
 
-    fun stopDtmf() {
-        currentCall?.stopDtmfTone()
-    }
+    fun stopDtmf() { currentCall?.stopDtmfTone() }
 
     fun snapshot(): Map<String, Any?> {
         val call = currentCall
         val details = call?.details
-        val handle = details?.handle
-        val state = call?.state ?: Call.STATE_DISCONNECTED
         val audio = service?.callAudioState
-        muted = service?.let { audio?.isMuted ?: muted } ?: muted
+        muted = audio?.isMuted ?: muted
         speaker = audio?.route == CallAudioState.ROUTE_SPEAKER
-        audioAvailable = audio?.supportedRouteMask?.and(
-            CallAudioState.ROUTE_SPEAKER or CallAudioState.ROUTE_EARPIECE
-        ) != 0
+        val state = call?.state ?: Call.STATE_DISCONNECTED
         return mapOf(
             "hasCall" to (call != null),
-            "number" to (handle?.schemeSpecificPart ?: ""),
+            "number" to (details?.handle?.schemeSpecificPart ?: ""),
             "displayName" to (details?.callerDisplayName ?: ""),
             "direction" to when (details?.callDirection) {
                 Call.Details.DIRECTION_INCOMING -> "incoming"
@@ -120,16 +185,13 @@ internal object MoogsCallRegistry {
             "state" to stateName(state),
             "muted" to muted,
             "speaker" to speaker,
-            "canHold" to (call?.details?.can(Call.Details.CAPABILITY_SUPPORT_HOLD) == true),
+            "canHold" to (details?.can(Call.Details.CAPABILITY_SUPPORT_HOLD) == true),
             "isHeld" to (state == Call.STATE_HOLDING),
-            "connectTimeMillis" to (details?.connectTimeMillis ?: 0L),
-            "video" to (details?.videoState != VideoProfile.STATE_AUDIO_ONLY)
+            "connectTimeMillis" to (details?.connectTimeMillis ?: 0L)
         )
     }
 
-    fun publish() {
-        eventSink?.invoke(snapshot())
-    }
+    fun publish() { eventSink?.invoke(snapshot()) }
 
     private fun stateName(state: Int): String = when (state) {
         Call.STATE_NEW -> "new"
