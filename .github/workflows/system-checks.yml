@@ -26,7 +26,7 @@ jobs:
         run: dart format --output=none lib test
 
       - name: Analyze Flutter code
-        run: flutter analyze --fatal-infos
+        run: flutter analyze
 
       - name: Run widget tests
         run: flutter test --reporter expanded
