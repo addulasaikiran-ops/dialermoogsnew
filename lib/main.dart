@@ -65,7 +65,7 @@ class CallSnapshot {
     required this.speaker,
     required this.canHold,
     required this.isHeld,
-    required this.connectTimeMillis,
+    required this.connectedDurationMillis,
   });
 
   final bool hasCall;
@@ -77,7 +77,7 @@ class CallSnapshot {
   final bool speaker;
   final bool canHold;
   final bool isHeld;
-  final int connectTimeMillis;
+  final int connectedDurationMillis;
 
   factory CallSnapshot.fromMap(Map<dynamic, dynamic> map) => CallSnapshot(
         hasCall: map['hasCall'] == true,
@@ -89,7 +89,7 @@ class CallSnapshot {
         speaker: map['speaker'] == true,
         canHold: map['canHold'] == true,
         isHeld: map['isHeld'] == true,
-        connectTimeMillis: (map['connectTimeMillis'] as num?)?.toInt() ?? 0,
+        connectedDurationMillis: (map['connectedDurationMillis'] as num?)?.toInt() ?? 0,
       );
 
   String get title => displayName.isNotEmpty ? displayName : (number.isNotEmpty ? number : 'Unknown caller');
@@ -444,10 +444,9 @@ class _CallScreenState extends State<CallScreen> {
   }
 
   void _updateElapsed() {
-    final started = widget.call.connectTimeMillis;
-    if (started > 0 && mounted) {
-      setState(() => _elapsedSeconds =
-          (DateTime.now().millisecondsSinceEpoch - started).clamp(0, 1 << 30) ~/ 1000);
+    final duration = widget.call.connectedDurationMillis;
+    if (mounted) {
+      setState(() => _elapsedSeconds = duration.clamp(0, 1 << 30) ~/ 1000);
     }
   }
 
