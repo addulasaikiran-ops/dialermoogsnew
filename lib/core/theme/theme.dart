@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+
 import 'tokens.dart';
+
 class MoogsTheme {
   static const pearl = Color(0xFFF4F1EC);
   static const midnight = Color(0xFF0A0D14);
@@ -7,26 +9,39 @@ class MoogsTheme {
   static const call = Color(0xFF2FD07A);
   static const missed = Color(0xFFFF3B4E);
 
-  static ThemeData get light => ThemeData(
+  static ThemeData get light => _build(
         brightness: Brightness.light,
-        scaffoldBackgroundColor: pearl,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: ice,
-          brightness: Brightness.light,
-          surface: const Color(0xFFFAF9F6),
-        ),
-        useMaterial3: true,
+        tokens: MoogTokens.pearl,
       );
 
-  static ThemeData get dark => ThemeData(
+  static ThemeData get dark => _build(
         brightness: Brightness.dark,
-        scaffoldBackgroundColor: midnight,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: ice,
-          brightness: Brightness.dark,
-          surface: const Color(0xFF151A26),
-        ),
-        useMaterial3: true,
+        tokens: MoogTokens.midnight,
       );
-}
 
+  static ThemeData _build({
+    required Brightness brightness,
+    required MoogTokens tokens,
+  }) {
+    final scheme = ColorScheme.fromSeed(
+      seedColor: tokens.accentA,
+      brightness: brightness,
+      surface: tokens.glassFillHi,
+    ).copyWith(
+      primary: tokens.accentA,
+      secondary: tokens.accentB,
+      surface: tokens.bgBottom,
+      onSurface: tokens.text,
+    );
+
+    return ThemeData(
+      brightness: brightness,
+      fontFamily: 'Manrope',
+      scaffoldBackgroundColor: tokens.bgTop,
+      colorScheme: scheme,
+      useMaterial3: true,
+      splashFactory: NoSplash.splashFactory,
+      extensions: <ThemeExtension<dynamic>>[tokens],
+    );
+  }
+}
