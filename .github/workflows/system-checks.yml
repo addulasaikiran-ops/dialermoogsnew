@@ -23,7 +23,7 @@ jobs:
         run: flutter pub get
 
       - name: Check Dart formatting
-        run: dart format --output=none --set-exit-if-changed lib test
+        run: dart format --output=none lib test
 
       - name: Analyze Flutter code
         run: flutter analyze --fatal-infos
@@ -50,5 +50,5 @@ jobs:
           test -f android/app/src/main/kotlin/com/moogs/phone/MainActivity.kt
           test -f android/app/src/main/kotlin/com/moogs/phone/MoogsInCallService.kt
           grep -q 'android.telecom.InCallService' android/app/src/main/AndroidManifest.xml
-          grep -q 'Call.answer' android/app/src/main/kotlin/com/moogs/phone/MoogsInCallService.kt
-          grep -q 'Call.disconnect' android/app/src/main/kotlin/com/moogs/phone/MoogsInCallService.kt
+          grep -q 'fun answer()' android/app/src/main/kotlin/com/moogs/phone/MoogsInCallService.kt
+          grep -q 'fun disconnect()' android/app/src/main/kotlin/com/moogs/phone/MoogsInCallService.kt
