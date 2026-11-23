@@ -290,15 +290,7 @@ class _DialerHomePageState extends State<DialerHomePage> {
               ),
             ]),
           ),
-          Expanded(child: IndexedStack(
-            index: _selectedTab,
-            children: [
-              _buildListScreen('Favorites', _favorites, Icons.star_rounded, empty: 'Your favorite contacts will appear here.'),
-              _buildListScreen('Recents', _recents, Icons.call_made_rounded, showCallType: true, empty: 'Your recent calls will appear here.'),
-              _buildContactsScreen(),
-              _buildKeypad(foreground),
-            ],
-          )),
+          Expanded(child: _buildSelectedContent(foreground)),
         ]),
       ),
       bottomNavigationBar: NavigationBar(
@@ -314,6 +306,20 @@ class _DialerHomePageState extends State<DialerHomePage> {
         ],
       ),
     );
+  }
+
+  Widget _buildSelectedContent(Color foreground) {
+    // Build only the selected page. This keeps first launch lighter on entry-level devices.
+    switch (_selectedTab) {
+      case 0:
+        return _buildListScreen('Favorites', _favorites, Icons.star_rounded, empty: 'Your favorite contacts will appear here.');
+      case 1:
+        return _buildListScreen('Recents', _recents, Icons.call_made_rounded, showCallType: true, empty: 'Your recent calls will appear here.');
+      case 2:
+        return _buildContactsScreen();
+      default:
+        return _buildKeypad(foreground);
+    }
   }
 
   Widget _buildKeypad(Color foreground) => Padding(
