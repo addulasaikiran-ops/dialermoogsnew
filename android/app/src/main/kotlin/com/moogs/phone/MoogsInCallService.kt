@@ -177,7 +177,7 @@ internal object MoogsCallRegistry {
             "hasCall" to (call != null),
             "number" to (details?.handle?.schemeSpecificPart ?: ""),
             "displayName" to (details?.callerDisplayName ?: ""),
-            "direction" to when (details?.callDirection) {
+            "direction" to when (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) details?.callDirection else null) {
                 Call.Details.DIRECTION_INCOMING -> "incoming"
                 Call.Details.DIRECTION_OUTGOING -> "outgoing"
                 else -> "unknown"
