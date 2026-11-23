@@ -97,7 +97,8 @@ class MainActivity : FlutterActivity() {
                         "setFavorite" -> {
                             val number = call.argument<String>("number")?.trim().orEmpty()
                             val favorite = call.argument<Boolean>("favorite") ?: false
-                            if (number.isNotEmpty()) updateFavorite(number, favorite)
+                            val name = call.argument<String>("name").orEmpty()
+                            if (number.isNotEmpty()) updateFavorite(number, name, favorite)
                             result.success(null)
                         }
                         else -> result.notImplemented()
@@ -229,11 +230,18 @@ class MainActivity : FlutterActivity() {
         }.sortedBy { (it["name"] as String).lowercase() }
     }
 
-    private fun updateFavorite(number: String, favorite: Boolean) {
+    private fun updateFavorite(number: String, name: String, favorite: Boolean) {
         val prefs = favoritesPreferences()
         val numbers = prefs.getStringSet("numbers", emptySet()).orEmpty().toMutableSet()
-        if (favorite) numbers.add(number) else numbers.remove(number)
-        prefs.edit().putStringSet("numbers", numbers).apply()
+        val names = prefs.getStringSet("names", emptySet()).orEmpty().toMutableSet()
+        names.removeAll { it.startsWith("$number|") }
+        if (favorite) {
+            numbers.add(number)
+            names.add("$number|$name")
+        } else {
+            numbers.remove(number)
+        }
+        prefs.edit().putStringSet("numbers", numbers).putStringSet("names", names).apply()
     }
 
     private fun requestDialerRole(result: MethodChannel.Result) {
