@@ -1,0 +1,54 @@
+name: Moog's Phone system checks
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main, feature/android-dialer-foundation]
+
+jobs:
+  flutter-quality:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      - name: Check Dart formatting
+        run: dart format --output=none --set-exit-if-changed lib test
+
+      - name: Analyze Flutter code
+        run: flutter analyze --fatal-infos
+
+      - name: Run widget tests
+        run: flutter test --reporter expanded
+
+  android-source-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Verify Android project declarations
+        shell: bash
+        run: |
+          test -f android/app/src/main/AndroidManifest.xml
+          test -f android/app/src/main/kotlin/com/moogs/phone/MainActivity.kt
+          test -f android/app/src/main/kotlin/com/moogs/phone/MoogsInCallService.kt
+          grep -q 'android.telecom.InCallService' android/app/src/main/AndroidManifest.xml
+          grep -q 'Call.answer' android/app/src/main/kotlin/com/moogs/phone/MoogsInCallService.kt
+          grep -q 'Call.disconnect' android/app/src/main/kotlin/com/moogs/phone/MoogsInCallService.kt
