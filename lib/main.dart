@@ -68,7 +68,7 @@ class CallSnapshot {
     required this.speaker,
     required this.canHold,
     required this.isHeld,
-    required this.connectTimeMillis,
+    required this.connectedDurationMillis,
   });
 
   final bool hasCall;
