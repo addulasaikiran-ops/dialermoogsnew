@@ -75,6 +75,11 @@ jobs:
       - name: Resolve Flutter dependencies
         run: flutter pub get
 
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
       - name: Prepare Android Gradle wrapper
         run: |
           echo "flutter.sdk=$FLUTTER_ROOT" > android/local.properties
