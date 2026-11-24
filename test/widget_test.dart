@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:moogs_phone/core/theme/tokens.dart';
+import 'package:moogs_phone/core/widgets/contact_row.dart';
+import 'package:moogs_phone/features/recents/recents_filter_chips.dart';
 import 'package:moogs_phone/main.dart';
 
 Future<void> _pumpDialer(WidgetTester tester) async {
