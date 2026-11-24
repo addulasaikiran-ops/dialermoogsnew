@@ -17,7 +17,7 @@ class AuroraBackdrop extends StatefulWidget {
 }
 
 class _AuroraBackdropState extends State<AuroraBackdrop>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late final AnimationController _drift;
 
   @override
@@ -32,6 +32,7 @@ class _AuroraBackdropState extends State<AuroraBackdrop>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (!mounted) return;
     if (state != AppLifecycleState.resumed) {
       _drift.stop();
     } else if (moogMs(context, 40000) > Duration.zero) {
