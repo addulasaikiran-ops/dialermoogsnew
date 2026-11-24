@@ -140,7 +140,9 @@ class _ContactRowState extends State<ContactRow> {
               Semantics(
                 button: true,
                 label: 'Call ${widget.name}',
-                child: SizedBox(
+                onTap: widget.onCall,
+                child: ExcludeSemantics(
+                  child: SizedBox(
                   width: 48,
                   height: 48,
                   child: IconButton(
@@ -148,6 +150,7 @@ class _ContactRowState extends State<ContactRow> {
                     onPressed: widget.onCall,
                     icon: Icon(Icons.call_rounded, color: t.call, size: 21),
                   ),
+                ),
                 ),
               ),
             ],
