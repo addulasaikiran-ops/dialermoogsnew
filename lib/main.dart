@@ -446,11 +446,13 @@ class _DialerHomePageState extends State<DialerHomePage> {
                 ),
                 SizedBox(
                   width: 76,
-                  child: IconButton(
-                    tooltip: 'Delete last digit (hold to clear)',
-                    onPressed: _number.isEmpty ? null : () => setState(() => _number = _number.substring(0, _number.length - 1)),
+                  child: GestureDetector(
                     onLongPress: _number.isEmpty ? null : () => _longPressKey('backspace'),
-                    icon: const Icon(Icons.backspace_outlined),
+                    child: IconButton(
+                      tooltip: 'Delete last digit (hold to clear)',
+                      onPressed: _number.isEmpty ? null : () => setState(() => _number = _number.substring(0, _number.length - 1)),
+                      icon: const Icon(Icons.backspace_outlined),
+                    ),
                   ),
                 ),
               ],
