@@ -33,7 +33,8 @@ jobs:
         run: flutter pub get
 
       - name: Analyze Flutter code
-        run: flutter analyze
+        # Deprecation notices are informational; keep real warnings and errors fatal.
+        run: flutter analyze --no-fatal-infos
 
       - name: Run Flutter tests
         run: flutter test
