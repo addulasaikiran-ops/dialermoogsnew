@@ -8,6 +8,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.SystemClock
+import android.util.Log
 import android.telecom.Call
 import android.telecom.CallAudioState
 import android.telecom.InCallService
@@ -16,16 +17,19 @@ import android.telecom.VideoProfile
 class MoogsInCallService : InCallService() {
     override fun onCreate() {
         super.onCreate()
+        Log.i("MoogsCallDebug", "InCallService onCreate")
         ensureCallChannel()
     }
 
     override fun onCallAdded(call: Call) {
         super.onCallAdded(call)
+        Log.i("MoogsCallDebug", "InCallService onCallAdded state=${call.state} direction=${call.details?.callDirection}")
         MoogsCallRegistry.attach(call, this)
         updateCallNotification(call)
     }
 
     override fun onCallRemoved(call: Call) {
+        Log.i("MoogsCallDebug", "InCallService onCallRemoved state=${call.state}")
         MoogsCallRegistry.detach(call)
         refreshCallNotification()
         super.onCallRemoved(call)
@@ -119,6 +123,7 @@ internal object MoogsCallRegistry {
 
     private val callback = object : Call.Callback() {
         override fun onStateChanged(call: Call, state: Int) {
+            Log.i("MoogsCallDebug", "Call.Callback onStateChanged state=$state")
             service?.refreshCallNotification()
             publish()
         }
@@ -129,6 +134,7 @@ internal object MoogsCallRegistry {
     fun attach(call: Call, inCallService: MoogsInCallService) {
         service = inCallService
         synchronized(calls) { calls.add(call) }
+        Log.i("MoogsCallDebug", "Registry attach calls=${synchronized(calls) { calls.size }} state=${call.state}")
         call.registerCallback(callback)
         publish()
     }
@@ -191,7 +197,11 @@ internal object MoogsCallRegistry {
         )
     }
 
-    fun publish() { eventSink?.invoke(snapshot()) }
+    fun publish() {
+        val value = snapshot()
+        Log.i("MoogsCallDebug", "Registry publish hasCall=${value["hasCall"]} state=${value["state"]} sink=${eventSink != null}")
+        eventSink?.invoke(value)
+    }
     private fun stateName(state: Int): String = when (state) {
         Call.STATE_NEW -> "new"
         Call.STATE_CONNECTING -> "connecting"
