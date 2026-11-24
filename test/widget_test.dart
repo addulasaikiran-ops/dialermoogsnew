@@ -30,9 +30,9 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         theme: MoogsTheme.light,
-        home: MediaQuery(
+        home: const MediaQuery(
           data: MediaQueryData(textScaler: TextScaler.linear(1.3)),
-          child: const DialerHomePage(),
+          child: DialerHomePage(),
         ),
       ),
     );
