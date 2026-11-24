@@ -1,0 +1,2 @@
+import 'package:flutter/material.dart';
+class GlassNavBar extends StatelessWidget { const GlassNavBar({super.key,required this.index,required this.onChanged,required this.destinations}); final int index; final ValueChanged<int> onChanged; final List<NavigationDestination> destinations; @override Widget build(BuildContext context)=>NavigationBar(selectedIndex:index,onDestinationSelected:onChanged,destinations:destinations); }
