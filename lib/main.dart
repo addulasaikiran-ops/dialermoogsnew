@@ -471,6 +471,7 @@ class _DialerHomePageState extends State<DialerHomePage> {
       onTap: () => setState(() => _selectedSim = slot),
       child: GlassSurface(
         radius: 999,
+        tint: selected ? t.accentA.withValues(alpha: .28) : null,
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
         child: Text(
           'SIM ${slot + 1}',
