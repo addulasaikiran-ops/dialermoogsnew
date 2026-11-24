@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'core/motion.dart';
+
 /// Places the live call experience above the normal tab shell.
 ///
 /// Keeping call state here means the home shell can remain mounted and retain
@@ -63,8 +65,8 @@ class _CallGateState<T> extends State<CallGate<T>> {
     final call = _call;
     final page = call == null ? widget.child : widget.callBuilder(call);
     return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 320),
-      switchInCurve: Curves.easeOutCubic,
+      duration: moogMs(context, 320),
+      switchInCurve: Curves.easeOutBack,
       switchOutCurve: Curves.easeInCubic,
       transitionBuilder: (child, animation) => FadeTransition(
         opacity: animation,
