@@ -68,7 +68,8 @@ class MoogsTheme {
             accentB: Color(0xFF2FD07A),
             call: Color(0xFF2FD07A), callGradient: [Color(0xFF64EBA4), Color(0xFF2FD07A), Color(0xFF159653)],
             end: Color(0xFFFF3B4E), missed: Color(0xFFFF3B4E),
-            logoSilver: Color(0xFFE8EEF7), logoBlue: Color(0xFF8CCBFA), logoSlate: Color(0xFF5F7FA8),
+            logoSilver: Color(0xFFA9B6C8), logoBlue: Color(0xFF8CCBFA), logoSlate: Color(0xFF5F7FA8),
+            onMissed: Color(0xFFFFFFFF),
           ),
         ],
       );
@@ -91,6 +92,9 @@ class MoogsTheme {
             shadow: Color(0x66000000), text: Color(0xFFEEF1F7),
             textMuted: Color(0xFFBFC7D5), accentA: Color(0xFF8CCBFA),
             accentB: Color(0xFF2FD07A),
+            call: Color(0xFF2FD07A), callGradient: [Color(0xFF64EBA4), Color(0xFF2FD07A), Color(0xFF159653)],
+            end: Color(0xFFFF3B4E), missed: Color(0xFFFF3B4E), onMissed: Color(0xFFFFFFFF),
+            logoSilver: Color(0xFFE8EEF7), logoBlue: Color(0xFF8CCBFA), logoSlate: Color(0xFF5F7FA8),
           ),
         ],
       );
