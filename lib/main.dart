@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:ui' show FontFeature;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -11,6 +12,7 @@ import 'features/dialer/number_display.dart';
 import 'core/widgets/glass_surface.dart';
 import 'core/widgets/aurora_backdrop.dart';
 import 'features/shell/home_shell.dart';
+import 'app.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -28,7 +30,13 @@ class MoogsPhoneApp extends StatelessWidget {
       theme: MoogsTheme.light,
       darkTheme: MoogsTheme.dark,
       themeMode: ThemeMode.system,
-      home: const DialerHomePage(),
+      home: CallGate<CallSnapshot>(
+        child: const DialerHomePage(),
+        events: TelecomBridge.callEvents,
+        loadCurrent: TelecomBridge.currentCall,
+        hasCall: (call) => call.hasCall,
+        callBuilder: (call) => CallScreen(key: const ValueKey('call-screen'), call: call),
+      ),
     );
   }
 }
@@ -211,30 +219,10 @@ class _DialerHomePageState extends State<DialerHomePage> {
   List<PhoneEntry> _contacts = const [];
   List<PhoneEntry> _recents = const [];
   List<PhoneEntry> _favorites = const [];
-  CallSnapshot? _call;
-  StreamSubscription<CallSnapshot>? _callSubscription;
 
   @override
   void initState() {
     super.initState();
-    _callSubscription = TelecomBridge.callEvents.listen(
-      (snapshot) { if (mounted) setState(() => _call = snapshot.hasCall ? snapshot : null); },
-      onError: (_) {},
-    );
-    _loadCall();
-  }
-
-  Future<void> _loadCall() async {
-    try {
-      final snapshot = await TelecomBridge.currentCall();
-      if (mounted) setState(() => _call = snapshot.hasCall ? snapshot : null);
-    } on PlatformException { /* Preview mode remains usable. */ }
-  }
-
-  @override
-  void dispose() {
-    _callSubscription?.cancel();
-    super.dispose();
   }
 
   Future<void> _loadTab(int tab, {bool askPermission = true}) async {
@@ -299,8 +287,6 @@ class _DialerHomePageState extends State<DialerHomePage> {
 
   @override
   Widget build(BuildContext context) {
-    final call = _call;
-    if (call != null) return CallScreen(key: const ValueKey('call-screen'), call: call);
     final dark = Theme.of(context).brightness == Brightness.dark;
     final foreground = dark ? Colors.white : const Color(0xFF20232B);
     return HomeShell(
