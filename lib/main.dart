@@ -479,7 +479,7 @@ class _DialerHomePageState extends State<DialerHomePage> {
   Widget _buildListScreen(String title, List<PhoneEntry> entries, IconData icon, {bool showCallType = false, required String empty}) =>
     Column(children: [
       Padding(padding: const EdgeInsets.fromLTRB(20, 10, 20, 12), child: Align(alignment: Alignment.centerLeft,
-        child: Text(title, style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)))),
+        child: Text(title, style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontSize: 34, fontWeight: FontWeight.w200, letterSpacing: -.8)))),
       Expanded(child: _loading ? const Center(child: CircularProgressIndicator()) :
         _loadError != null ? _errorPanel(_loadError!, _selectedTab) :
         entries.isEmpty ? _emptyPanel('Nothing here yet', empty) :
