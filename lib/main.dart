@@ -851,8 +851,10 @@ class _SlideToAnswerState extends State<SlideToAnswer>
   void _handleBack() {
     if (!mounted) return;
     setState(() {
-      _dx = _from *
-          (1 - Curves.easeOutBack.transform(_back.value)).clamp(0.0, 1.0);
+      _dx = (_from *
+          (1 - Curves.easeOutBack.transform(_back.value))
+              .clamp(0.0, 1.0))
+          .toDouble();
     });
   }
 
@@ -882,7 +884,8 @@ class _SlideToAnswerState extends State<SlideToAnswer>
                       child: IgnorePointer(
                         child: Opacity(
                           opacity: (1 - (_dx / (maxDx == 0 ? 1 : maxDx)))
-                              .clamp(0.0, 1.0),
+                              .clamp(0.0, 1.0)
+                              .toDouble(),
                           child: Text(
                             'slide to answer',
                             style: TextStyle(
