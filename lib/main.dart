@@ -9,6 +9,7 @@ import 'core/widgets/moog_logo.dart';
 import 'features/dialer/keypad_key.dart';
 import 'features/dialer/number_display.dart';
 import 'core/widgets/glass_surface.dart';
+import 'core/widgets/aurora_backdrop.dart';
 import 'features/shell/home_shell.dart';
 
 void main() {
