@@ -23,10 +23,20 @@ class _AuroraBackdropState extends State<AuroraBackdrop>
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _drift = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 40),
     );
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed) {
+      _drift.stop();
+    } else if (moogMs(context, 40000) > Duration.zero) {
+      _drift.repeat();
+    }
   }
 
   @override
@@ -44,6 +54,7 @@ class _AuroraBackdropState extends State<AuroraBackdrop>
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _drift.dispose();
     super.dispose();
   }
@@ -87,7 +98,15 @@ class _AuroraBackdropState extends State<AuroraBackdrop>
     return RepaintBoundary(
       child: AnimatedBuilder(
         animation: _drift,
-        builder: (context, _) {
+        child: IgnorePointer(
+          child: Image.asset(
+            'assets/images/grain.png',
+            repeat: ImageRepeat.repeat,
+            filterQuality: FilterQuality.low,
+            opacity: const AlwaysStoppedAnimation(.035),
+          ),
+        ),
+        builder: (context, grain) {
           final phase = _drift.value;
           return Stack(
             fit: StackFit.expand,
@@ -104,16 +123,7 @@ class _AuroraBackdropState extends State<AuroraBackdrop>
               _orb(orbA, _alignment(phase, -.72, -.72), .92),
               _orb(orbB, _alignment(phase + .34, .78, -.12), .84),
               _orb(orbC, _alignment(phase + .68, -.18, .88), .96),
-              IgnorePointer(
-                child: Opacity(
-                  opacity: .035,
-                  child: Image.asset(
-                    'assets/images/grain.png',
-                    repeat: ImageRepeat.repeat,
-                    filterQuality: FilterQuality.low,
-                  ),
-                ),
-              ),
+              if (grain != null) grain,
             ],
           );
         },
