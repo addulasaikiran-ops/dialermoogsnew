@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:math' as math;
-import 'dart:ui' show FontFeature;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -31,11 +30,11 @@ class MoogsPhoneApp extends StatelessWidget {
       darkTheme: MoogsTheme.dark,
       themeMode: ThemeMode.system,
       home: CallGate<CallSnapshot>(
-        child: const DialerHomePage(),
         events: TelecomBridge.callEvents,
         loadCurrent: TelecomBridge.currentCall,
         hasCall: (call) => call.hasCall,
         callBuilder: (call) => CallScreen(key: const ValueKey('call-screen'), call: call),
+        child: const DialerHomePage(),
       ),
     );
   }
