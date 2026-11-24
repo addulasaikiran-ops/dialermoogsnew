@@ -167,6 +167,7 @@ class _MoogNavIconPainter extends CustomPainter {
         path.lineTo(9.3, 8.7);
         path.close();
         canvas.drawPath(path, p);
+        break;
       case MoogNavIconType.recents:
         canvas.drawCircle(const Offset(12, 12), 8.5, p);
         path.moveTo(12, 7);
@@ -178,18 +179,21 @@ class _MoogNavIconPainter extends CustomPainter {
         path.lineTo(4.2, 3.8);
         path.lineTo(7.8, 3.8);
         canvas.drawPath(path, p);
+        break;
       case MoogNavIconType.contacts:
         canvas.drawCircle(const Offset(12, 8), 3.2, p);
         path.moveTo(4.5, 20);
         path.cubicTo(4.8, 15.7, 7.5, 13.5, 12, 13.5);
         path.cubicTo(16.5, 13.5, 19.2, 15.7, 19.5, 20);
         canvas.drawPath(path, p);
+        break;
       case MoogNavIconType.keypad:
         for (final x in [6.0, 12.0, 18.0]) {
           for (final y in [6.0, 12.0, 18.0]) {
             canvas.drawCircle(Offset(x, y), 1.45, p);
           }
         }
+        break;
     }
     canvas.restore();
   }
