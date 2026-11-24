@@ -11,6 +11,7 @@ import 'features/dialer/number_display.dart';
 import 'core/widgets/glass_surface.dart';
 import 'core/widgets/aurora_backdrop.dart';
 import 'features/shell/home_shell.dart';
+import 'app.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -28,7 +29,13 @@ class MoogsPhoneApp extends StatelessWidget {
       theme: MoogsTheme.light,
       darkTheme: MoogsTheme.dark,
       themeMode: ThemeMode.system,
-      home: const DialerHomePage(),
+      home: CallGate<CallSnapshot>(
+        events: TelecomBridge.callEvents,
+        loadCurrent: TelecomBridge.currentCall,
+        hasCall: (call) => call.hasCall,
+        callBuilder: (call) => CallScreen(key: const ValueKey('call-screen'), call: call),
+        child: const DialerHomePage(),
+      ),
     );
   }
 }
@@ -211,31 +218,6 @@ class _DialerHomePageState extends State<DialerHomePage> {
   List<PhoneEntry> _contacts = const [];
   List<PhoneEntry> _recents = const [];
   List<PhoneEntry> _favorites = const [];
-  CallSnapshot? _call;
-  StreamSubscription<CallSnapshot>? _callSubscription;
-
-  @override
-  void initState() {
-    super.initState();
-    _callSubscription = TelecomBridge.callEvents.listen(
-      (snapshot) { if (mounted) setState(() => _call = snapshot.hasCall ? snapshot : null); },
-      onError: (_) {},
-    );
-    _loadCall();
-  }
-
-  Future<void> _loadCall() async {
-    try {
-      final snapshot = await TelecomBridge.currentCall();
-      if (mounted) setState(() => _call = snapshot.hasCall ? snapshot : null);
-    } on PlatformException { /* Preview mode remains usable. */ }
-  }
-
-  @override
-  void dispose() {
-    _callSubscription?.cancel();
-    super.dispose();
-  }
 
   Future<void> _loadTab(int tab, {bool askPermission = true}) async {
     setState(() { _selectedTab = tab; _loading = true; _loadError = null; });
@@ -299,8 +281,6 @@ class _DialerHomePageState extends State<DialerHomePage> {
 
   @override
   Widget build(BuildContext context) {
-    final call = _call;
-    if (call != null) return CallScreen(key: const ValueKey('call-screen'), call: call);
     final dark = Theme.of(context).brightness == Brightness.dark;
     final foreground = dark ? Colors.white : const Color(0xFF20232B);
     return HomeShell(
@@ -540,6 +520,7 @@ class _CallScreenState extends State<CallScreen> {
   Timer? _clock;
   int _elapsedSeconds = 0;
   bool _showKeypad = false;
+  String _enteredDigits = '';
 
   @override
   void initState() {
@@ -556,9 +537,7 @@ class _CallScreenState extends State<CallScreen> {
 
   void _updateElapsed() {
     final duration = widget.call.connectedDurationMillis;
-    if (mounted) {
-      setState(() => _elapsedSeconds = duration.clamp(0, 1 << 30) ~/ 1000);
-    }
+    if (mounted) setState(() => _elapsedSeconds = duration.clamp(0, 1 << 30) ~/ 1000);
   }
 
   @override
@@ -573,6 +552,13 @@ class _CallScreenState extends State<CallScreen> {
     return '$minutes:$seconds';
   }
 
+  String get _initials {
+    final parts = widget.call.title.trim().split(RegExp(r'\s+')).where((part) => part.isNotEmpty).toList();
+    if (parts.isEmpty) return '?';
+    if (parts.length == 1) return parts.first.characters.take(2).toString().toUpperCase();
+    return (parts.first.characters.first + parts.last.characters.first).toUpperCase();
+  }
+
   Future<void> _action(String name, [Map<String, Object?> args = const {}]) async {
     try {
       await TelecomBridge.act(name, args);
@@ -585,11 +571,17 @@ class _CallScreenState extends State<CallScreen> {
     }
   }
 
+  void _sendDigit(String digit) {
+    setState(() => _enteredDigits += digit);
+    _action('dtmf', {'digit': digit});
+  }
+
   @override
   Widget build(BuildContext context) {
     final call = widget.call;
     final incoming = call.isRinging && call.direction == 'incoming';
     final connected = call.isActive;
+    final t = context.moog;
     final subtitle = connected
         ? _time
         : switch (call.state) {
@@ -601,6 +593,90 @@ class _CallScreenState extends State<CallScreen> {
             _ => 'Call in progress',
           };
 
+    final controls = GlassSurface(
+      blur: true,
+      radius: 30,
+      padding: const EdgeInsets.fromLTRB(14, 16, 14, 16),
+      child: GridView.count(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        crossAxisCount: 3,
+        mainAxisSpacing: 12,
+        crossAxisSpacing: 6,
+        childAspectRatio: 1.05,
+        children: [
+          _CallControl(
+            icon: call.muted ? Icons.mic_off_rounded : Icons.mic_none_rounded,
+            label: call.muted ? 'Muted' : 'Mute',
+            selected: call.muted,
+            onTap: () => _action('mute', {'enabled': !call.muted}),
+          ),
+          _CallControl(
+            icon: Icons.dialpad_rounded,
+            label: 'Keypad',
+            onTap: () => setState(() => _showKeypad = true),
+          ),
+          _CallControl(
+            icon: call.speaker ? Icons.volume_up_rounded : Icons.volume_down_rounded,
+            label: 'Speaker',
+            selected: call.speaker,
+            onTap: () => _action('speaker', {'enabled': !call.speaker}),
+          ),
+          _CallControl(
+            icon: call.isHeld ? Icons.play_arrow_rounded : Icons.pause_rounded,
+            label: call.isHeld ? 'Resume' : 'Hold',
+            selected: call.isHeld,
+            enabled: call.canHold,
+            onTap: () => _action('hold', {'enabled': !call.isHeld}),
+          ),
+          const _CallControl(icon: Icons.bluetooth_rounded, label: 'Bluetooth', enabled: false),
+          const _CallControl(icon: Icons.person_outline_rounded, label: 'Contacts', enabled: false),
+        ],
+      ),
+    );
+
+    final keypad = GlassSurface(
+      blur: true,
+      radius: 30,
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            height: 28,
+            child: Center(
+              child: Text(
+                _enteredDigits.isEmpty ? 'Enter keypad digits' : _enteredDigits,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w300, letterSpacing: 2, color: t.text),
+              ),
+            ),
+          ),
+          const SizedBox(height: 6),
+          for (final row in const [
+            ['1', '2', '3'], ['4', '5', '6'], ['7', '8', '9'], ['*', '0', '#'],
+          ]) ...[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: row.map((digit) => KeypadKey(
+                digit: digit,
+                label: '',
+                size: 54,
+                onTap: () => _sendDigit(digit),
+              )).toList(),
+            ),
+            const SizedBox(height: 6),
+          ],
+          TextButton.icon(
+            onPressed: () => setState(() => _showKeypad = false),
+            icon: const Icon(Icons.keyboard_hide_rounded, size: 18),
+            label: const Text('Hide keypad'),
+          ),
+        ],
+      ),
+    );
+
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Stack(
@@ -609,130 +685,98 @@ class _CallScreenState extends State<CallScreen> {
           const AuroraBackdrop(),
           SafeArea(
             child: Padding(
-          padding: const EdgeInsets.fromLTRB(28, 26, 28, 24),
-          child: Column(
-            children: [
-              const Spacer(flex: 2),
-              Container(
-                width: 116,
-                height: 116,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: MoogsTheme.ice.withValues(alpha: .14),
-                  border: Border.all(color: MoogsTheme.ice.withValues(alpha: .45), width: 1.2),
-                ),
-                child: const Icon(Icons.person_rounded, size: 64, color: MoogsTheme.ice),
-              ),
-              const SizedBox(height: 28),
-              Text(call.title,
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: -.6,
-                      )),
-              const SizedBox(height: 10),
-              Text(subtitle,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: .62),
-                        letterSpacing: .4,
-                      )),
-              const Spacer(flex: 2),
-              if (incoming) ...[
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
+              padding: const EdgeInsets.fromLTRB(24, 20, 24, 18),
+              child: Column(
+                children: [
+                  const Spacer(flex: 1),
+                  Container(
+                    width: 120,
+                    height: 120,
+                    padding: const EdgeInsets.all(1),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [t.borderHi, t.accentA.withValues(alpha: .24), t.borderLo],
+                      ),
+                    ),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: t.glassFillHi,
+                        border: Border.all(color: t.borderHi.withValues(alpha: .5), width: .5),
+                      ),
+                      child: Center(
+                        child: Text(_initials, style: TextStyle(fontSize: 36, fontWeight: FontWeight.w300, letterSpacing: 1, color: t.text)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    call.title,
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 34, height: 1.12, fontWeight: FontWeight.w300, letterSpacing: -.8, color: t.text),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w400,
+                      color: t.textMuted,
+                      letterSpacing: .35,
+                      fontFeatures: connected ? const [FontFeature.tabularFigures()] : null,
+                    ),
+                  ),
+                  const Spacer(flex: 1),
+                  if (incoming) ...[
+                    SlideToAnswer(
+                      onAnswer: () => _action('answer'),
+                    ),
+                    const SizedBox(height: 22),
                     _RoundCallButton(
                       icon: Icons.call_end_rounded,
                       label: 'Decline',
                       color: MoogsTheme.missed,
                       onTap: () => _action('reject'),
                     ),
-                    _RoundCallButton(
-                      icon: Icons.call_rounded,
-                      label: 'Answer',
-                      color: MoogsTheme.call,
-                      onTap: () => _action('answer'),
+                  ] else ...[
+                    AnimatedCrossFade(
+                      firstChild: controls,
+                      secondChild: keypad,
+                      crossFadeState: _showKeypad && connected ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+                      duration: const Duration(milliseconds: 260),
+                      sizeCurve: Curves.easeInOut,
                     ),
-                  ],
-                ),
-              ] else ...[
-                if (_showKeypad && connected)
-                  SizedBox(
-                    width: 240,
-                    child: GridView.count(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      crossAxisCount: 3,
-                      childAspectRatio: 1.3,
-                      children: ['1','2','3','4','5','6','7','8','9','*','0','#']
-                          .map((digit) => TextButton(
-                                onPressed: () => _action('dtmf', {'digit': digit}),
-                                child: Text(digit, style: Theme.of(context).textTheme.titleLarge),
-                              ))
-                          .toList(),
-                    ),
-                  )
-                else
-                  Wrap(
-                    alignment: WrapAlignment.center,
-                    spacing: 18,
-                    runSpacing: 18,
-                    children: [
-                      _CallControl(
-                        icon: call.muted ? Icons.mic_off_rounded : Icons.mic_none_rounded,
-                        label: call.muted ? 'Muted' : 'Mute',
-                        selected: call.muted,
-                        onTap: () => _action('mute', {'enabled': !call.muted}),
-                      ),
-                      _CallControl(
-                        icon: Icons.dialpad_rounded,
-                        label: 'Keypad',
-                        onTap: () => setState(() => _showKeypad = true),
-                      ),
-                      _CallControl(
-                        icon: call.speaker ? Icons.volume_up_rounded : Icons.volume_down_rounded,
-                        label: 'Speaker',
-                        selected: call.speaker,
-                        onTap: () => _action('speaker', {'enabled': !call.speaker}),
-                      ),
-                      if (call.canHold)
-                        _CallControl(
-                          icon: call.isHeld ? Icons.play_arrow_rounded : Icons.pause_rounded,
-                          label: call.isHeld ? 'Resume' : 'Hold',
-                          selected: call.isHeld,
-                          onTap: () => _action('hold', {'enabled': !call.isHeld}),
+                    const SizedBox(height: 18),
+                    GlassSurface(
+                      radius: 999,
+                      blur: true,
+                      tint: MoogsTheme.missed.withValues(alpha: .88),
+                      shadow: true,
+                      child: InkWell(
+                        customBorder: const CircleBorder(),
+                        onTap: () {
+                          HapticFeedback.mediumImpact();
+                          _action('disconnect');
+                        },
+                        child: const SizedBox(
+                          width: 72,
+                          height: 72,
+                          child: Icon(Icons.call_end_rounded, color: Colors.white, size: 29),
                         ),
-                    ],
-                  ),
-                const SizedBox(height: 28),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    if (_showKeypad)
-                      IconButton(
-                        tooltip: 'Hide keypad',
-                        onPressed: () => setState(() => _showKeypad = false),
-                        icon: const Icon(Icons.keyboard_hide_rounded),
                       ),
-                    _RoundCallButton(
-                      icon: Icons.call_end_rounded,
-                      label: 'End call',
-                      color: MoogsTheme.missed,
-                      onTap: () => _action('disconnect'),
                     ),
                   ],
-                ),
-              ],
-              const Spacer(),
-              Text("MOOG'S PHONE",
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        letterSpacing: 2.2,
-                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: .4),
-                      )),
-            ],
+                  const Spacer(),
+                  Text("MOOG'S PHONE", style: TextStyle(fontSize: 10, letterSpacing: 2.2, color: t.textMuted.withValues(alpha: .65))),
+                ],
+              ),
             ),
           ),
-        ),
         ],
       ),
     );
@@ -743,35 +787,181 @@ class _CallControl extends StatelessWidget {
   const _CallControl({
     required this.icon,
     required this.label,
-    required this.onTap,
+    this.onTap,
     this.selected = false,
+    this.enabled = true,
   });
+
   final IconData icon;
   final String label;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
   final bool selected;
+  final bool enabled;
 
   @override
-  Widget build(BuildContext context) => SizedBox(
-        width: 88,
-        child: Column(
-          children: [
-            Material(
-              color: selected
-                  ? MoogsTheme.ice.withValues(alpha: .25)
-                  : Theme.of(context).colorScheme.surface.withValues(alpha: .8),
-              shape: const CircleBorder(),
-              child: IconButton(
-                onPressed: onTap,
-                icon: Icon(icon),
-                iconSize: 25,
-                padding: const EdgeInsets.all(18),
+  Widget build(BuildContext context) {
+    final t = context.moog;
+    return Opacity(
+      opacity: enabled ? 1 : .4,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Material(
+            color: selected ? t.accentA.withValues(alpha: .25) : t.glassFillHi,
+            shape: const CircleBorder(),
+            child: InkWell(
+              customBorder: const CircleBorder(),
+              onTap: enabled && onTap != null
+                  ? () {
+                      HapticFeedback.selectionClick();
+                      onTap!();
+                    }
+                  : null,
+              child: SizedBox(width: 54, height: 54, child: Icon(icon, size: 23, color: t.text)),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, color: t.textMuted)),
+        ],
+      ),
+    );
+  }
+}
+
+class SlideToAnswer extends StatefulWidget {
+  const SlideToAnswer({super.key, required this.onAnswer});
+
+  final VoidCallback onAnswer;
+
+  @override
+  State<SlideToAnswer> createState() => _SlideToAnswerState();
+}
+
+class _SlideToAnswerState extends State<SlideToAnswer>
+    with SingleTickerProviderStateMixin {
+  static const _handle = 64.0;
+  double _dx = 0;
+  double _from = 0;
+
+  late final AnimationController _back = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 280),
+  )..addListener(_handleBack);
+
+  void _handleBack() {
+    if (!mounted) return;
+    setState(() {
+      _dx = (_from *
+          (1 - Curves.easeOutBack.transform(_back.value))
+              .clamp(0.0, 1.0))
+          .toDouble();
+    });
+  }
+
+  @override
+  void dispose() {
+    _back.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+        builder: (context, constraints) {
+          final maxDx =
+              (constraints.maxWidth - _handle - 8).clamp(0.0, double.infinity);
+          return Semantics(
+            button: true,
+            label: 'Answer call',
+            onTap: widget.onAnswer,
+            child: GlassSurface(
+              radius: 999,
+              child: SizedBox(
+                height: 72,
+                child: Stack(
+                  alignment: Alignment.centerLeft,
+                  children: [
+                    Center(
+                      child: IgnorePointer(
+                        child: Opacity(
+                          opacity: (1 - (_dx / (maxDx == 0 ? 1 : maxDx)))
+                              .clamp(0.0, 1.0)
+                              .toDouble(),
+                          child: Text(
+                            'slide to answer',
+                            style: TextStyle(
+                              color: context.moog.textMuted,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              letterSpacing: 1.1,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      left: 4 + _dx,
+                      top: 4,
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onHorizontalDragStart: (_) => _back.stop(),
+                        onHorizontalDragUpdate: (details) {
+                          setState(() {
+                            _dx = (_dx + details.delta.dx)
+                                .clamp(0.0, maxDx)
+                                .toDouble();
+                          });
+                        },
+                        onHorizontalDragEnd: (_) {
+                          if (maxDx > 0 && _dx > maxDx * .85) {
+                            HapticFeedback.heavyImpact();
+                            widget.onAnswer();
+                          } else {
+                            _from = _dx;
+                            _back.forward(from: 0);
+                          }
+                        },
+                        child: Container(
+                          width: _handle,
+                          height: _handle,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: const LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                Color(0xFF64EBA4),
+                                Color(0xFF2FD07A),
+                                Color(0xFF159653),
+                              ],
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: MoogsTheme.call.withValues(alpha: .42),
+                                blurRadius: 24,
+                                spreadRadius: 1,
+                                offset: const Offset(0, 5),
+                              ),
+                              const BoxShadow(
+                                color: Color(0x55FFFFFF),
+                                blurRadius: 5,
+                                offset: Offset(-2, -2),
+                              ),
+                            ],
+                          ),
+                          child: const Icon(
+                            Icons.call_rounded,
+                            color: Colors.white,
+                            size: 27,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-            const SizedBox(height: 7),
-            Text(label, style: Theme.of(context).textTheme.labelMedium),
-          ],
-        ),
+          );
+        },
       );
 }
 
