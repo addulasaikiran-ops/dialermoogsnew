@@ -732,15 +732,18 @@ class _CallScreenState extends State<CallScreen> {
                     ),
                   ),
                   const Spacer(flex: 1),
-                  if (incoming)
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        _RoundCallButton(icon: Icons.call_end_rounded, label: 'Decline', color: MoogsTheme.missed, onTap: () => _action('reject')),
-                        _RoundCallButton(icon: Icons.call_rounded, label: 'Answer', color: MoogsTheme.call, onTap: () => _action('answer')),
-                      ],
-                    )
-                  else ...[
+                  if (incoming) ...[
+                    SlideToAnswer(
+                      onAnswer: () => _action('answer'),
+                    ),
+                    const SizedBox(height: 22),
+                    _RoundCallButton(
+                      icon: Icons.call_end_rounded,
+                      label: 'Decline',
+                      color: MoogsTheme.missed,
+                      onTap: () => _action('reject'),
+                    ),
+                  ] else ...[
                     AnimatedCrossFade(
                       firstChild: controls,
                       secondChild: keypad,
@@ -823,6 +826,140 @@ class _CallControl extends StatelessWidget {
       ),
     );
   }
+}
+
+class SlideToAnswer extends StatefulWidget {
+  const SlideToAnswer({super.key, required this.onAnswer});
+
+  final VoidCallback onAnswer;
+
+  @override
+  State<SlideToAnswer> createState() => _SlideToAnswerState();
+}
+
+class _SlideToAnswerState extends State<SlideToAnswer>
+    with SingleTickerProviderStateMixin {
+  static const _handle = 64.0;
+  double _dx = 0;
+  double _from = 0;
+
+  late final AnimationController _back = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 280),
+  )..addListener(_handleBack);
+
+  void _handleBack() {
+    if (!mounted) return;
+    setState(() {
+      _dx = _from *
+          (1 - Curves.easeOutBack.transform(_back.value)).clamp(0.0, 1.0);
+    });
+  }
+
+  @override
+  void dispose() {
+    _back.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+        builder: (context, constraints) {
+          final maxDx =
+              (constraints.maxWidth - _handle - 8).clamp(0.0, double.infinity);
+          return Semantics(
+            button: true,
+            label: 'Answer call',
+            onTap: widget.onAnswer,
+            child: GlassSurface(
+              radius: 999,
+              child: SizedBox(
+                height: 72,
+                child: Stack(
+                  alignment: Alignment.centerLeft,
+                  children: [
+                    Center(
+                      child: IgnorePointer(
+                        child: Opacity(
+                          opacity: (1 - (_dx / (maxDx == 0 ? 1 : maxDx)))
+                              .clamp(0.0, 1.0),
+                          child: Text(
+                            'slide to answer',
+                            style: TextStyle(
+                              color: context.moog.textMuted,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              letterSpacing: 1.1,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      left: 4 + _dx,
+                      top: 4,
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onHorizontalDragStart: (_) => _back.stop(),
+                        onHorizontalDragUpdate: (details) {
+                          setState(() {
+                            _dx = (_dx + details.delta.dx)
+                                .clamp(0.0, maxDx)
+                                .toDouble();
+                          });
+                        },
+                        onHorizontalDragEnd: (_) {
+                          if (maxDx > 0 && _dx > maxDx * .85) {
+                            HapticFeedback.heavyImpact();
+                            widget.onAnswer();
+                          } else {
+                            _from = _dx;
+                            _back.forward(from: 0);
+                          }
+                        },
+                        child: Container(
+                          width: _handle,
+                          height: _handle,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: const LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                Color(0xFF64EBA4),
+                                Color(0xFF2FD07A),
+                                Color(0xFF159653),
+                              ],
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: MoogsTheme.call.withValues(alpha: .42),
+                                blurRadius: 24,
+                                spreadRadius: 1,
+                                offset: const Offset(0, 5),
+                              ),
+                              const BoxShadow(
+                                color: Color(0x55FFFFFF),
+                                blurRadius: 5,
+                                offset: Offset(-2, -2),
+                              ),
+                            ],
+                          ),
+                          child: const Icon(
+                            Icons.call_rounded,
+                            color: Colors.white,
+                            size: 27,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      );
 }
 
 class _RoundCallButton extends StatelessWidget {
