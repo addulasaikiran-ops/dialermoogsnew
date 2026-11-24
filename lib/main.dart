@@ -200,7 +200,6 @@ class DialerHomePage extends StatefulWidget {
 }
 
 class _DialerHomePageState extends State<DialerHomePage> {
-  static const _digits = <String>['1','2','3','4','5','6','7','8','9','*','0','#'];
   int _selectedTab = 3;
   int _selectedSim = 0;
   String _number = '';
@@ -811,31 +810,3 @@ class _RoundCallButton extends StatelessWidget {
       );
 }
 
-class _KeypadButton extends StatelessWidget {
-  const _KeypadButton({required this.digit, required this.onTap});
-  final String digit;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    return Material(
-      color: Colors.white.withValues(alpha: dark ? .07 : .72),
-      shape: const CircleBorder(),
-      child: InkWell(
-        customBorder: const CircleBorder(),
-        onTap: () {
-          HapticFeedback.selectionClick();
-          onTap();
-        },
-        child: Center(
-          child: Text(digit,
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.w400,
-                    color: dark ? Colors.white : const Color(0xFF252832),
-                  )),
-        ),
-      ),
-    );
-  }
-}
