@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../core/theme/theme.dart';
+import '../../core/theme/tokens.dart';
 import '../../telecom/call_snapshot.dart';
 import '../../telecom/telecom_bridge.dart';
 
@@ -95,7 +95,7 @@ class _CallScreenState extends State<CallScreen> {
                   color: context.moog.accentA.withValues(alpha: .14),
                   border: Border.all(color: context.moog.accentA.withValues(alpha: .45), width: 1.2),
                 ),
-                child: const Icon(Icons.person_rounded, size: 64, color: context.moog.accentA),
+                child: Icon(Icons.person_rounded, size: 64, color: context.moog.accentA),
               ),
               const SizedBox(height: 28),
               Text(call.title,
