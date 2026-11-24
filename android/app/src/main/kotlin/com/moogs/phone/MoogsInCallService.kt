@@ -27,7 +27,7 @@ class MoogsInCallService : InCallService() {
 
     override fun onCallRemoved(call: Call) {
         MoogsCallRegistry.detach(call)
-        cancelCallNotification()
+        refreshCallNotification()
         super.onCallRemoved(call)
     }
 
@@ -90,9 +90,10 @@ class MoogsInCallService : InCallService() {
         }
     }
 
-    private fun cancelCallNotification() {
+    internal fun refreshCallNotification() {
+        val call = MoogsCallRegistry.currentCall
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        manager.cancel(CALL_NOTIFICATION_ID)
+        if (call == null) manager.cancel(CALL_NOTIFICATION_ID) else updateCallNotification(call)
     }
 
     companion object {
@@ -103,8 +104,13 @@ class MoogsInCallService : InCallService() {
 
 internal object MoogsCallRegistry {
     @Volatile private var service: MoogsInCallService? = null
-    @Volatile var currentCall: Call? = null
-        private set
+    private val calls = linkedSetOf<Call>()
+    val currentCall: Call?
+        get() = synchronized(calls) {
+            calls.firstOrNull { it.state == Call.STATE_RINGING }
+                ?: calls.firstOrNull { it.state == Call.STATE_ACTIVE || it.state == Call.STATE_DIALING || it.state == Call.STATE_CONNECTING }
+                ?: calls.firstOrNull { it.state != Call.STATE_DISCONNECTED }
+        }
     @Volatile var muted: Boolean = false
         private set
     @Volatile var speaker: Boolean = false
@@ -113,7 +119,7 @@ internal object MoogsCallRegistry {
 
     private val callback = object : Call.Callback() {
         override fun onStateChanged(call: Call, state: Int) {
-            service?.updateCallNotification(call)
+            service?.refreshCallNotification()
             publish()
         }
         override fun onDetailsChanged(call: Call, details: Call.Details) = publish()
@@ -122,18 +128,15 @@ internal object MoogsCallRegistry {
 
     fun attach(call: Call, inCallService: MoogsInCallService) {
         service = inCallService
-        currentCall?.unregisterCallback(callback)
-        currentCall = call
+        synchronized(calls) { calls.add(call) }
         call.registerCallback(callback)
         publish()
     }
 
     fun detach(call: Call) {
         call.unregisterCallback(callback)
-        if (currentCall === call) {
-            currentCall = null
-            publish()
-        }
+        synchronized(calls) { calls.remove(call) }
+        publish()
     }
 
     fun setMuted(value: Boolean) {
@@ -144,27 +147,20 @@ internal object MoogsCallRegistry {
 
     fun setSpeaker(value: Boolean) {
         speaker = value
-        service?.setAudioRoute(
-            if (value) CallAudioState.ROUTE_SPEAKER else CallAudioState.ROUTE_EARPIECE
-        )
+        service?.setAudioRoute(if (value) CallAudioState.ROUTE_SPEAKER else CallAudioState.ROUTE_EARPIECE)
         publish()
     }
 
     fun answer() { currentCall?.answer(VideoProfile.STATE_AUDIO_ONLY) }
     fun reject() { currentCall?.reject(false, null) }
     fun disconnect() { currentCall?.disconnect() }
-
     fun hold(value: Boolean) {
         val call = currentCall ?: return
         if (value) call.hold() else call.unhold()
     }
-
     fun playDtmf(digit: String) {
-        if (digit.length == 1 && (digit[0].isDigit() || digit[0] == '*' || digit[0] == '#')) {
-            currentCall?.playDtmfTone(digit[0])
-        }
+        if (digit.length == 1 && (digit[0].isDigit() || digit[0] == '*' || digit[0] == '#')) currentCall?.playDtmfTone(digit[0])
     }
-
     fun stopDtmf() { currentCall?.stopDtmfTone() }
 
     fun snapshot(): Map<String, Any?> {
@@ -196,7 +192,6 @@ internal object MoogsCallRegistry {
     }
 
     fun publish() { eventSink?.invoke(snapshot()) }
-
     private fun stateName(state: Int): String = when (state) {
         Call.STATE_NEW -> "new"
         Call.STATE_CONNECTING -> "connecting"
@@ -209,4 +204,5 @@ internal object MoogsCallRegistry {
         Call.STATE_DISCONNECTED -> "disconnected"
         else -> "unknown"
     }
+}
 }
