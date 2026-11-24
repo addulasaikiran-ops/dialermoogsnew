@@ -5,6 +5,7 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import android.Manifest
 import android.content.pm.PackageManager
 import android.telecom.TelecomManager
@@ -29,6 +30,7 @@ class MainActivity : FlutterActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Log.i("MoogsCallDebug", "MainActivity onCreate")
         if (Build.VERSION.SDK_INT >= 33 &&
             checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 4103)
@@ -156,10 +158,12 @@ class MainActivity : FlutterActivity() {
         EventChannel(flutterEngine.dartExecutor.binaryMessenger, eventName)
             .setStreamHandler(object : EventChannel.StreamHandler {
                 override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
-                    MoogsCallRegistry.eventSink = { snapshot -> runOnUiThread { events?.success(snapshot) } }
+                    Log.i("MoogsCallDebug", "EventChannel onListen; sinkAvailable=${events != null}")
+                    MoogsCallRegistry.eventSink = { snapshot -> runOnUiThread { Log.i("MoogsCallDebug", "EventChannel deliver hasCall=${snapshot["hasCall"]} state=${snapshot["state"]}"); events?.success(snapshot) } }
                     MoogsCallRegistry.publish()
                 }
                 override fun onCancel(arguments: Any?) {
+                    Log.i("MoogsCallDebug", "EventChannel onCancel")
                     MoogsCallRegistry.eventSink = null
                 }
             })
