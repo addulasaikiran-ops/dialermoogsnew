@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/theme/tokens.dart';
+import '../../core/motion.dart';
 import '../../core/widgets/glass_surface.dart';
 
 class KeypadKey extends StatefulWidget {
@@ -45,8 +46,8 @@ class _KeypadKeyState extends State<KeypadKey> {
           onLongPress: widget.onLongPress,
           child: AnimatedScale(
             scale: _pressed ? .97 : 1,
-            duration: const Duration(milliseconds: 90),
-            curve: Curves.easeOut,
+            duration: moogMs(context, 300),
+            curve: Curves.easeOutBack,
             child: DecoratedBox(
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
