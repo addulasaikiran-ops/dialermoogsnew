@@ -58,12 +58,16 @@ class MainActivity : FlutterActivity() {
                                     subscriptionId?.let { id -> accounts.firstOrNull { it.id.toIntOrNull() == id } }
                                 }.getOrNull() ?: accounts.getOrNull(simSlot)
 
-                                val extras = Bundle()
-                                if (selectedHandle != null) {
-                                    extras.putParcelable(TelecomManager.EXTRA_PHONE_ACCOUNT_HANDLE, selectedHandle)
+                                if (accounts.isNotEmpty() && selectedHandle == null) {
+                                    result.error("SIM_UNAVAILABLE", "The selected SIM is not available for outgoing calls", null)
+                                } else {
+                                    val extras = Bundle()
+                                    if (selectedHandle != null) {
+                                        extras.putParcelable(TelecomManager.EXTRA_PHONE_ACCOUNT_HANDLE, selectedHandle)
+                                    }
+                                    telecom.placeCall(Uri.fromParts("tel", number, null), extras)
+                                    result.success(null)
                                 }
-                                telecom.placeCall(Uri.fromParts("tel", number, null), extras)
-                                result.success(null)
                             }
                         }
                         "getCallSnapshot" -> result.success(MoogsCallRegistry.snapshot())
