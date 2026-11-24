@@ -32,12 +32,14 @@ class CallGate<T> extends StatefulWidget {
 class _CallGateState<T> extends State<CallGate<T>> {
   StreamSubscription<T>? _subscription;
   T? _call;
+  int _eventVersion = 0;
 
   @override
   void initState() {
     super.initState();
     _subscription = widget.events.listen(
       (value) {
+        _eventVersion++;
         if (mounted) setState(() => _call = widget.hasCall(value) ? value : null);
       },
       onError: (_) {},
@@ -46,9 +48,12 @@ class _CallGateState<T> extends State<CallGate<T>> {
   }
 
   Future<void> _restoreCurrentCall() async {
+    final versionAtStart = _eventVersion;
     try {
       final value = await widget.loadCurrent();
-      if (mounted) setState(() => _call = widget.hasCall(value) ? value : null);
+      if (mounted && versionAtStart == _eventVersion) {
+        setState(() => _call = widget.hasCall(value) ? value : null);
+      }
     } on PlatformException {
       // Keep the regular dialer available when Telecom is not ready yet.
     }
