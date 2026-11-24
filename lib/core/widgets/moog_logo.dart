@@ -24,7 +24,7 @@ class MoogLogo extends StatelessWidget {
   Widget build(BuildContext context) {
     final tokens = context.moog;
     final normal = monochrome ? tokens.text : tokens.accentA;
-    final missedColor = const Color(0xFFFF3B4E);
+    const missedColor = Color(0xFFFF3B4E);
 
     return ValueListenableBuilder<int>(
       valueListenable: moogMissedCount,
