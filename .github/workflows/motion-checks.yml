@@ -3,6 +3,8 @@ name: Moog's Phone motion and accessibility checks
 on:
   push:
     branches: [feat/reduced-motion-system]
+  pull_request:
+    branches: [feat/glass-navigation-shell]
 
 jobs:
   flutter-quality:
