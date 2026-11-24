@@ -58,7 +58,25 @@ class _ContactRowState extends State<ContactRow> {
         style: TextStyle(fontSize: 13, color: t.textMuted)));
     }
     if ((widget.relativeTime ?? '').isNotEmpty) {
-      detailParts.add(Text(widget.relativeTime!, style: TextStyle(fontSize: 13, color: t.textMuted)));\n      final direction = switch (widget.callType) {\n        1 => 'Incoming call',\n        2 => 'Outgoing call',\n        3 => 'Missed call',\n        _ => null,\n      };\n      if (direction != null) {\n        detailParts.add(Semantics(\n          label: direction,\n          child: CustomPaint(\n            size: const Size.square(13),\n            painter: _CallDirectionPainter(\n              callType: widget.callType!,\n              color: widget.callType == 3 ? t.missed : t.textMuted,\n            ),\n          ),\n        ));\n      }
+      detailParts.add(Text(widget.relativeTime!, style: TextStyle(fontSize: 13, color: t.textMuted)));
+      final direction = switch (widget.callType) {
+        1 => 'Incoming call',
+        2 => 'Outgoing call',
+        3 => 'Missed call',
+        _ => null,
+      };
+      if (direction != null) {
+        detailParts.add(Semantics(
+          label: direction,
+          child: CustomPaint(
+            size: const Size.square(13),
+            painter: _CallDirectionPainter(
+              callType: widget.callType!,
+              color: widget.callType == 3 ? t.missed : t.textMuted,
+            ),
+          ),
+        ));
+      }
     }
     if ((widget.simLabel ?? '').isNotEmpty) {
       detailParts.add(Container(
@@ -83,7 +101,7 @@ class _ContactRowState extends State<ContactRow> {
         duration: moogMs(context, 110),
         curve: Curves.easeOut,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 110),
+          duration: moogMs(context, 110),
           constraints: const BoxConstraints(minHeight: 64),
           margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 1),
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
@@ -123,9 +141,15 @@ class _ContactRowState extends State<ContactRow> {
                     Text(widget.name, maxLines: 1, overflow: TextOverflow.ellipsis,
                       style: TextStyle(fontSize: 16, height: 1.2, fontWeight: FontWeight.w500,
                         color: widget.missed ? t.missed : t.text)),
-                    const SizedBox(height: 3),
-                    Wrap(spacing: 8, runSpacing: 2, crossAxisAlignment: WrapCrossAlignment.center,
-                      children: detailParts),
+                    if (detailParts.isNotEmpty) ...[
+                      const SizedBox(height: 3),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 2,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: detailParts,
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -190,18 +214,21 @@ class _CallDirectionPainter extends CustomPainter {
         path.moveTo(3.5, 7.5);
         path.lineTo(6.5, 10.5);
         path.lineTo(9.5, 7.5);
+        break;
       case 2: // Outgoing: arrow points away from the handset.
         path.moveTo(3, 10);
         path.lineTo(10, 3);
         path.moveTo(5.5, 3);
         path.lineTo(10, 3);
         path.lineTo(10, 7.5);
+        break;
       case 3: // Missed: descending arrow.
         path.moveTo(3, 3);
         path.lineTo(10, 10);
         path.moveTo(5.5, 10);
         path.lineTo(10, 10);
         path.lineTo(10, 5.5);
+        break;
     }
     canvas.drawPath(path, paint);
     canvas.restore();
