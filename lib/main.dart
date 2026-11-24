@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -6,6 +7,9 @@ import 'package:flutter/services.dart';
 import 'core/theme/tokens.dart';
 import 'core/widgets/aurora_backdrop.dart';
 import 'core/widgets/moog_logo.dart';
+import 'features/dialer/keypad_key.dart';
+import 'features/dialer/number_display.dart';
+import 'core/widgets/glass_surface.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -140,8 +144,8 @@ class TelecomBridge {
   static Future<void> act(String action, [Map<String, Object?> args = const {}]) =>
       _methods.invokeMethod<void>(action, args);
 
-  static Future<void> placeCall(String number) =>
-      act('placeCall', {'number': number});
+  static Future<void> placeCall(String number, int simSlot) =>
+      act('placeCall', {'number': number, 'simSlot': simSlot});
 
   static Future<void> requestDefaultDialer() => act('requestDefaultDialer');
 }
@@ -196,8 +200,8 @@ class DialerHomePage extends StatefulWidget {
 }
 
 class _DialerHomePageState extends State<DialerHomePage> {
-  static const _digits = <String>['1','2','3','4','5','6','7','8','9','*','0','#'];
   int _selectedTab = 3;
+  int _selectedSim = 0;
   String _number = '';
   String _search = '';
   bool _requestingRole = false;
@@ -269,7 +273,7 @@ class _DialerHomePageState extends State<DialerHomePage> {
 
   Future<void> _placeCall() async {
     if (_number.trim().isEmpty) return;
-    try { await TelecomBridge.placeCall(_number); }
+    try { await TelecomBridge.placeCall(_number, _selectedSim); }
     on PlatformException catch (error) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.message ?? 'Unable to start call')));
     }
@@ -353,33 +357,136 @@ class _DialerHomePageState extends State<DialerHomePage> {
     }
   }
 
-  Widget _buildKeypad(Color foreground) => Padding(
-    padding: const EdgeInsets.fromLTRB(24, 12, 24, 12),
-    child: Column(children: [
-      const Spacer(),
-      Text(_number.isEmpty ? 'Enter a number' : _number, maxLines: 1, overflow: TextOverflow.ellipsis,
-        style: Theme.of(context).textTheme.headlineMedium?.copyWith(color: foreground, fontWeight: FontWeight.w400, letterSpacing: 2)),
-      const SizedBox(height: 20),
-      SizedBox(width: 276, child: GridView.count(
-        crossAxisCount: 3, shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
-        mainAxisSpacing: 7, crossAxisSpacing: 14, childAspectRatio: 1.38,
-        children: _digits.map((digit) => _KeypadButton(digit: digit, onTap: () => _append(digit))).toList(),
-      )),
-      const SizedBox(height: 16),
-      Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-        const SizedBox(width: 64),
-        InkWell(onTap: _placeCall, customBorder: const CircleBorder(), child: Container(
-          width: 60, height: 60, decoration: BoxDecoration(shape: BoxShape.circle, color: MoogsTheme.call,
-            boxShadow: [BoxShadow(color: MoogsTheme.call.withValues(alpha: .22), blurRadius: 16, offset: const Offset(0, 5))]),
-          child: const Icon(Icons.call_rounded, color: Colors.white, size: 28))),
-        SizedBox(width: 64, child: IconButton(
-          tooltip: 'Delete last digit',
-          onPressed: _number.isEmpty ? null : () => setState(() => _number = _number.substring(0, _number.length - 1)),
-          icon: const Icon(Icons.backspace_outlined))),
-      ]),
-      const Spacer(),
-    ]),
+  static const _keyLabels = <String, String>{
+    '1': '', '2': 'ABC', '3': 'DEF',
+    '4': 'GHI', '5': 'JKL', '6': 'MNO',
+    '7': 'PQRS', '8': 'TUV', '9': 'WXYZ',
+    '*': '', '0': '+', '#': '',
+  };
+
+  void _longPressKey(String digit) {
+    if (digit == '0') {
+      _append('+');
+    } else if (digit == 'backspace') {
+      setState(() => _number = '');
+    }
+  }
+
+  Widget _buildKeypad(Color foreground) => LayoutBuilder(
+    builder: (context, constraints) {
+      const gap = 14.0;
+      final widthKeySize = math.min((constraints.maxWidth - 2 * gap) / 3, 84.0);
+      final heightKeySize = (constraints.maxHeight - 280) / 4;
+      final keySize = math.max(36.0, math.min(widthKeySize, heightKeySize));
+      final rows = [
+        ['1', '2', '3'], ['4', '5', '6'],
+        ['7', '8', '9'], ['*', '0', '#'],
+      ];
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(20, 6, 20, 8),
+        child: Column(
+          children: [
+            const SizedBox(height: 4),
+            NumberDisplay(number: _number),
+            const SizedBox(height: 10),
+            SizedBox(
+              height: 24,
+              child: Center(
+                child: Text(
+                  'Suggestions will appear here',
+                  style: TextStyle(fontSize: 11, color: context.moog.textMuted, letterSpacing: .2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            for (final row in rows) ...[
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: row.map((digit) => KeypadKey(
+                  digit: digit,
+                  label: _keyLabels[digit] ?? '',
+                  size: keySize,
+                  onTap: () => _append(digit),
+                  onLongPress: digit == '0' ? () => _longPressKey('0') : null,
+                )).toList(),
+              ),
+              const SizedBox(height: 8),
+            ],
+            const Spacer(),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _simChip(0),
+                const SizedBox(width: 10),
+                _simChip(1),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const SizedBox(width: 76),
+                GestureDetector(
+                  onTap: _placeCall,
+                  child: Container(
+                    width: 76,
+                    height: 76,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: const LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [Color(0xFF58E69A), Color(0xFF20B967), Color(0xFF159653)],
+                      ),
+                      boxShadow: [
+                        BoxShadow(color: const Color(0xFF2FD07A).withValues(alpha: .35), blurRadius: 36, spreadRadius: 1, offset: const Offset(0, 8)),
+                      ],
+                    ),
+                    child: const Icon(Icons.call_rounded, color: Colors.white, size: 32),
+                  ),
+                ),
+                SizedBox(
+                  width: 76,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: _number.isEmpty ? null : () => setState(() => _number = _number.substring(0, _number.length - 1)),
+                    onLongPress: _number.isEmpty ? null : () => _longPressKey('backspace'),
+                    child: const SizedBox(
+                      height: 48,
+                      child: Center(child: Icon(Icons.backspace_outlined)),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+          ],
+        ),
+      );
+    },
   );
+
+  Widget _simChip(int slot) {
+    final selected = _selectedSim == slot;
+    final t = context.moog;
+    return GestureDetector(
+      onTap: () => setState(() => _selectedSim = slot),
+      child: GlassSurface(
+        radius: 999,
+        tint: selected ? t.accentA.withValues(alpha: .28) : null,
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+        child: Text(
+          'SIM ${slot + 1}',
+          style: TextStyle(
+            fontSize: 11,
+            letterSpacing: .8,
+            fontWeight: FontWeight.w600,
+            color: selected ? t.text : t.textMuted,
+          ),
+        ),
+      ),
+    );
+  }
 
   Widget _buildContactsScreen() {
     final filtered = _contacts.where((entry) =>
@@ -734,31 +841,3 @@ class _RoundCallButton extends StatelessWidget {
       );
 }
 
-class _KeypadButton extends StatelessWidget {
-  const _KeypadButton({required this.digit, required this.onTap});
-  final String digit;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    return Material(
-      color: Colors.white.withValues(alpha: dark ? .07 : .72),
-      shape: const CircleBorder(),
-      child: InkWell(
-        customBorder: const CircleBorder(),
-        onTap: () {
-          HapticFeedback.selectionClick();
-          onTap();
-        },
-        child: Center(
-          child: Text(digit,
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.w400,
-                    color: dark ? Colors.white : const Color(0xFF252832),
-                  )),
-        ),
-      ),
-    );
-  }
-}

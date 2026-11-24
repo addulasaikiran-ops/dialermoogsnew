@@ -5,7 +5,7 @@ void main() {
   testWidgets('shows Moog\'s Phone with four working navigation destinations', (tester) async {
     await tester.pumpWidget(const MoogsPhoneApp());
     expect(find.text("Moog's Phone"), findsOneWidget);
-    expect(find.text('Enter a number'), findsOneWidget);
+    expect(find.text('Enter number'), findsOneWidget);
     expect(find.text('Favorites'), findsOneWidget);
     expect(find.text('Recents'), findsOneWidget);
     expect(find.text('Contacts'), findsOneWidget);
