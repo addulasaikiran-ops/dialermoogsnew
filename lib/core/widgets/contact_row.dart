@@ -67,6 +67,8 @@ class _ContactRowState extends State<ContactRow> {
       };
       if (direction != null) {
         detailParts.add(Semantics(
+          container: true,
+          excludeSemantics: true,
           label: direction,
           child: CustomPaint(
             size: const Size.square(13),
