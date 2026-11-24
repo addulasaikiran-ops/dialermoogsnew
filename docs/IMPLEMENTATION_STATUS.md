@@ -1,31 +1,42 @@
 # Implementation status
 
-## Slice 1 — Android/Flutter foundation
+Last reviewed: 2026-11-24
 
-Branch: `feature/android-dialer-foundation`
+## Implemented in the current main branch
 
-### Added
-- Flutter/Dart application entry point and a responsive starter keypad.
-- Pearl Light and Midnight Dark Material 3 themes with system theme selection.
-- Android Gradle Kotlin DSL project configuration.
-- Android dialer intent filters and an `InCallService` declaration.
-- Native Kotlin method channel for requesting the default-dialer role and placing an outgoing call through `TelecomManager`.
-- Native call registry receiving Telecom call-added/call-removed callbacks.
-- Minimal Moog's Phone launcher mark.
-- Initial widget tests.
+- Flutter application shell with Pearl Light and Midnight Dark themes.
+- Four-tab navigation: Favorites, Recents, Contacts and Keypad; Keypad is the initial tab.
+- Liquid Glass surfaces, animated Aurora backdrop, Moog logo, reduced-motion and reduce-effects support.
+- Dialer keypad interactions, SIM-slot selection UI and outgoing-call handoff through Android Telecom.
+- Android default-dialer role request flow and native InCallService call lifecycle bridge.
+- Incoming and active call UI, answer/decline/end, mute, speaker, hold and in-call DTMF controls.
+- Contacts and call-history read views through Android providers, subject to runtime permissions.
+- Local favorites persistence.
+- Widget tests for navigation, keypad entry, long-press behavior, slide-to-answer, themes, semantics and larger text.
 
-### Not complete yet
-This is a source foundation, not a releasable dialer APK. The native `InCallService` currently tracks the active `Call` only; Flutter incoming/active call screens and answer, reject, hold, mute, DTMF, audio-route and disconnect controls are not yet connected. Runtime permission flows, contacts and call-log providers, dual-SIM selection, local persistence, backup/restore, blocking, ringtone selection and device-specific MIUI validation remain future slices.
+## Not implemented or not yet device-validated
 
-### Build prerequisites
-- Flutter SDK installed.
-- Android SDK and JDK 17.
-- Run `flutter pub get`, then `flutter test` and `flutter build apk --debug`.
-
-The repository does not include a Gradle wrapper binary or a built APK in this slice. Build and test on a development machine before installing on the Redmi 9 Activ.
-
-## Product constraints carried forward
-- Offline-first; no app-owned backend, analytics, ads or tracking.
-- Android Contacts and Call Log providers are accessed only after runtime permission and role requirements are satisfied.
+- Contact creation/edit/delete, contact photos/posters and call-screen contact-photo lookup.
+- Full T9 contact matching and suggestions.
+- Recents filtering, individual deletion and clear-all.
+- Blocking, ringtone picker, local vCard backup/restore and call insights.
+- Bluetooth audio routing and wired-headset route selection.
+- Simultaneous-call UX and real-device verification of call switching/holding.
+- Dual-SIM selection across carrier and MIUI variants.
+- Incoming/outgoing SIM-call validation, lock-screen behavior and notification behavior on Redmi 9 Activ.
+- Dynamic launcher icon, optional overlay window and 3D portrait effects remain best-effort.
 - Call recording remains deferred pending explicit product/legal review.
-- Overlay, dynamic launcher icon and 3D portrait effects remain best-effort/optional.
+
+## Build and verification
+
+- Flutter quality checks run dependency resolution, formatting, static analysis and widget tests.
+- Android Kotlin compilation is verified separately with JDK 17 and Gradle 8.7. CI generates a temporary Gradle wrapper and compiles `:app:compileDebugKotlin`; it does not upload or publish an APK artifact.
+- Run `bash tool/prepare_assets.sh` before `flutter pub get` in a fresh checkout. The script stages the Manrope variable font and required image directory from Google Fonts.
+- For a complete local Android build, install Flutter, Android SDK and JDK 17, then run `flutter pub get` and `flutter build apk --debug`.
+
+## Product constraints
+
+- Offline-first; no app-owned backend, analytics, ads or tracking.
+- Android Contacts and Call Log providers are accessed only after runtime permission.
+- Call recording remains deferred; no covert recording.
+- Overlay, dynamic launcher icon and 3D portrait effects remain optional/best-effort.

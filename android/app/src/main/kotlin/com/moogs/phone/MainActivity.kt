@@ -25,12 +25,22 @@ class MainActivity : FlutterActivity() {
     private val contactsPermissionRequest = 4201
     private val callLogPermissionRequest = 4202
     private var pendingPermissionResult: MethodChannel.Result? = null
+    private var pendingDialerRoleResult: MethodChannel.Result? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         if (Build.VERSION.SDK_INT >= 33 &&
             checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 4103)
+        }
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == requestDialerRole) {
+            val granted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) getSystemService(RoleManager::class.java).isRoleHeld(RoleManager.ROLE_DIALER) else (getSystemService(TELECOM_SERVICE) as TelecomManager).defaultDialerPackage == packageName
+            pendingDialerRoleResult?.success(granted)
+            pendingDialerRoleResult = null
         }
     }
 
@@ -277,20 +287,20 @@ class MainActivity : FlutterActivity() {
                 roles.isRoleHeld(RoleManager.ROLE_DIALER)) {
                 result.success(roles.isRoleHeld(RoleManager.ROLE_DIALER))
             } else {
+                pendingDialerRoleResult = result
                 startActivityForResult(roles.createRequestRoleIntent(RoleManager.ROLE_DIALER), requestDialerRole)
-                result.success(false)
             }
         } else {
             val telecom = getSystemService(TELECOM_SERVICE) as TelecomManager
             if (telecom.defaultDialerPackage == packageName) {
                 result.success(true)
             } else {
+                pendingDialerRoleResult = result
                 startActivityForResult(
                     Intent(TelecomManager.ACTION_CHANGE_DEFAULT_DIALER)
                         .putExtra(TelecomManager.EXTRA_CHANGE_DEFAULT_DIALER_PACKAGE_NAME, packageName),
                     requestDialerRole
                 )
-                result.success(false)
             }
         }
     }
