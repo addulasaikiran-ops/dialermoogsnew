@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../theme/tokens.dart';
-import 'glass_surface.dart';
 
 /// A compact, reusable contact/call-history row with Liquid Glass interaction.
 class ContactRow extends StatefulWidget {
