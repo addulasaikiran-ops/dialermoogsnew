@@ -19,6 +19,7 @@ class MoogTokens extends ThemeExtension<MoogTokens> {
     required this.callGradient,
     required this.end,
     required this.missed,
+    required this.onMissed,
     required this.logoSilver,
     required this.logoBlue,
     required this.logoSlate,
@@ -26,7 +27,7 @@ class MoogTokens extends ThemeExtension<MoogTokens> {
 
   final Color bgTop, bgBottom, glassFillHi, glassFillLo, borderHi, borderLo;
   final Color shadow, text, textMuted, accentA, accentB;
-  final Color call, end, missed, logoSilver, logoBlue, logoSlate;
+  final Color call, end, missed, onMissed, logoSilver, logoBlue, logoSlate;
   final List<Color> callGradient;
   final List<Color> orbs;
 
@@ -36,7 +37,7 @@ class MoogTokens extends ThemeExtension<MoogTokens> {
     Color? glassFillHi, Color? glassFillLo, Color? borderHi,
     Color? borderLo, Color? shadow, Color? text, Color? textMuted,
     Color? accentA, Color? accentB, Color? call, List<Color>? callGradient,
-    Color? end, Color? missed, Color? logoSilver, Color? logoBlue, Color? logoSlate,
+    Color? end, Color? missed, Color? onMissed, Color? logoSilver, Color? logoBlue, Color? logoSlate,
   }) => MoogTokens(
     bgTop: bgTop ?? this.bgTop,
     bgBottom: bgBottom ?? this.bgBottom,
@@ -54,6 +55,7 @@ class MoogTokens extends ThemeExtension<MoogTokens> {
     callGradient: callGradient ?? this.callGradient,
     end: end ?? this.end,
     missed: missed ?? this.missed,
+    onMissed: onMissed ?? this.onMissed,
     logoSilver: logoSilver ?? this.logoSilver,
     logoBlue: logoBlue ?? this.logoBlue,
     logoSlate: logoSlate ?? this.logoSlate,
@@ -85,6 +87,7 @@ class MoogTokens extends ThemeExtension<MoogTokens> {
       callGradient: List<Color>.generate(3, (i) => Color.lerp(callGradient[i], other.callGradient[i], t)!),
       end: Color.lerp(end, other.end, t)!,
       missed: Color.lerp(missed, other.missed, t)!,
+      onMissed: Color.lerp(onMissed, other.onMissed, t)!,
       logoSilver: Color.lerp(logoSilver, other.logoSilver, t)!,
       logoBlue: Color.lerp(logoBlue, other.logoBlue, t)!,
       logoSlate: Color.lerp(logoSlate, other.logoSlate, t)!,
