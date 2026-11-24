@@ -35,7 +35,7 @@ class RecentFilterChips extends StatelessWidget {
                   tint: selected == value ? t.accentA.withValues(alpha: .28) : null,
                   padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 9),
                   child: Text(value, style: TextStyle(
-                    fontSize: 12,
+                    fontSize: 13,
                     fontWeight: selected == value ? FontWeight.w700 : FontWeight.w500,
                     color: selected == value ? t.text : t.textMuted,
                   )),
