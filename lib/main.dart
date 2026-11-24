@@ -220,11 +220,6 @@ class _DialerHomePageState extends State<DialerHomePage> {
   List<PhoneEntry> _recents = const [];
   List<PhoneEntry> _favorites = const [];
 
-  @override
-  void initState() {
-    super.initState();
-  }
-
   Future<void> _loadTab(int tab, {bool askPermission = true}) async {
     setState(() { _selectedTab = tab; _loading = true; _loadError = null; });
     try {
@@ -670,7 +665,6 @@ class _CallScreenState extends State<CallScreen> {
                 label: '',
                 size: 54,
                 onTap: () => _sendDigit(digit),
-                onLongPress: digit == '0' ? () => _sendDigit('+') : null,
               )).toList(),
             ),
             const SizedBox(height: 6),
