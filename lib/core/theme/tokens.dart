@@ -64,17 +64,16 @@ class MoogTokens extends ThemeExtension<MoogTokens> {
   @override
   MoogTokens lerp(covariant MoogTokens? other, double t) {
     if (other == null) return this;
+    final orbCount = orbs.length > other.orbs.length ? orbs.length : other.orbs.length;
+    final blendedOrbs = List<Color>.generate(orbCount, (index) {
+      final from = orbs.isEmpty ? Colors.transparent : orbs[index < orbs.length ? index : orbs.length - 1];
+      final to = other.orbs.isEmpty ? Colors.transparent : other.orbs[index < other.orbs.length ? index : other.orbs.length - 1];
+      return Color.lerp(from, to, t)!;
+    });
     return MoogTokens(
       bgTop: Color.lerp(bgTop, other.bgTop, t)!,
       bgBottom: Color.lerp(bgBottom, other.bgBottom, t)!,
-      orbs: List<Color>.generate(
-        orbs.length,
-        (index) => Color.lerp(
-          orbs[index],
-          other.orbs[index < other.orbs.length ? index : other.orbs.length - 1],
-          t,
-        )!,
-      ),
+      orbs: blendedOrbs,
       glassFillHi: Color.lerp(glassFillHi, other.glassFillHi, t)!,
       glassFillLo: Color.lerp(glassFillLo, other.glassFillLo, t)!,
       borderHi: Color.lerp(borderHi, other.borderHi, t)!,
