@@ -476,7 +476,7 @@ class _DialerHomePageState extends State<DialerHomePage> {
       child: GlassSurface(
         radius: 999,
         tint: selected ? t.accentA.withValues(alpha: .28) : null,
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
         child: Text(
           'SIM ${slot + 1}',
           style: TextStyle(
