@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../core/theme/theme.dart';
+import '../../core/theme/tokens.dart';
 
 class KeypadKey extends StatelessWidget {
-  const KeypadKey({required this.digit, required this.onTap});
+  const KeypadKey({super.key, required this.digit, required this.onTap});
   final String digit;
   final VoidCallback onTap;
 
