@@ -7,6 +7,8 @@ import 'package:flutter/services.dart';
 import 'core/theme/tokens.dart';
 import 'core/motion.dart';
 import 'core/widgets/moog_logo.dart';
+import 'core/widgets/contact_row.dart';
+import 'features/recents/recents_filter_chips.dart';
 import 'features/dialer/keypad_key.dart';
 import 'features/dialer/number_display.dart';
 import 'core/widgets/glass_surface.dart';
@@ -198,17 +200,19 @@ class PhoneDataBridge {
 }
 
 class PhoneEntry {
-  const PhoneEntry({required this.name, required this.number, this.dateMillis = 0, this.callType = 0});
+  const PhoneEntry({required this.name, required this.number, this.dateMillis = 0, this.callType = 0, this.simLabel});
   final String name;
   final String number;
   final int dateMillis;
   final int callType;
+  final String? simLabel;
 
   factory PhoneEntry.fromMap(Map<dynamic, dynamic> map) => PhoneEntry(
     name: map['name']?.toString() ?? '',
     number: map['number']?.toString() ?? '',
     dateMillis: (map['dateMillis'] as num?)?.toInt() ?? 0,
     callType: (map['callType'] as num?)?.toInt() ?? 0,
+    simLabel: map['simLabel']?.toString().trim().isNotEmpty == true ? map['simLabel'].toString() : null,
   );
 
   String get displayName => name.isNotEmpty ? name : (number.isNotEmpty ? number : 'Unknown');
@@ -232,8 +236,10 @@ class _DialerHomePageState extends State<DialerHomePage> {
   List<PhoneEntry> _contacts = const [];
   List<PhoneEntry> _recents = const [];
   List<PhoneEntry> _favorites = const [];
+  String _recentFilter = 'All';
 
   Future<void> _loadTab(int tab, {bool askPermission = true}) async {
+    if (tab == 1) moogMissedCount.value = 0;
     setState(() { _selectedTab = tab; _loading = true; _loadError = null; });
     try {
       if (tab == 0 || tab == 2) {
@@ -248,8 +254,7 @@ class _DialerHomePageState extends State<DialerHomePage> {
           throw PlatformException(code: 'CALL_LOG_PERMISSION', message: 'Allow call history access to show recent calls.');
         }
         final recent = await PhoneDataBridge.recents();
-        moogMissedCount.value = recent.where((entry) => entry.callType == 3).length;
-        if (mounted) setState(() => _recents = recent);
+        if (mounted) setState(() { _recents = recent; _recentFilter = 'All'; });
       }
     } on PlatformException catch (error) {
       if (mounted) setState(() => _loadError = error.message ?? 'Permission is required to show this information.');
@@ -358,8 +363,8 @@ class _DialerHomePageState extends State<DialerHomePage> {
         ]),
       ),
       pages: [
-        Padding(padding: const EdgeInsets.only(bottom: 96), child: _buildListScreen('Favorites', _favorites, Icons.star_rounded, empty: 'Your favorite contacts will appear here.')),
-        Padding(padding: const EdgeInsets.only(bottom: 96), child: _buildListScreen('Recents', _recents, Icons.call_made_rounded, showCallType: true, empty: 'Your recent calls will appear here.')),
+        Padding(padding: const EdgeInsets.only(bottom: 96), child: _buildListScreen('Favorites', _favorites, empty: 'Your favorite contacts will appear here.')),
+        Padding(padding: const EdgeInsets.only(bottom: 96), child: _buildListScreen('Recents', _recents, empty: 'Your recent calls will appear here.', showRecents: true)),
         Padding(padding: const EdgeInsets.only(bottom: 96), child: _buildContactsScreen()),
         Padding(padding: const EdgeInsets.only(bottom: 96), child: _buildKeypad(foreground)),
       ],
@@ -515,51 +520,94 @@ class _DialerHomePageState extends State<DialerHomePage> {
     ]);
   }
 
-  Widget _buildListScreen(String title, List<PhoneEntry> entries, IconData icon, {bool showCallType = false, required String empty}) =>
-    Column(children: [
-      Padding(padding: const EdgeInsets.fromLTRB(20, 10, 20, 12), child: Align(alignment: Alignment.centerLeft,
-        child: Text(title, style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontSize: 34, fontWeight: FontWeight.w200, letterSpacing: -.8)))),
-      Expanded(child: _loading ? const Center(child: CircularProgressIndicator()) :
+  Widget _buildListScreen(
+    String title,
+    List<PhoneEntry> entries, {
+    bool showRecents = false,
+    required String empty,
+  }) {
+    final visibleEntries = showRecents
+        ? entries.where((entry) {
+            switch (_recentFilter) {
+              case 'Missed': return entry.callType == 3;
+              case 'Incoming': return entry.callType == 1;
+              case 'Outgoing': return entry.callType == 2;
+              default: return true;
+            }
+          }).toList(growable: false)
+        : entries;
+    return Column(children: [
+      Padding(
+        padding: const EdgeInsets.fromLTRB(20, 10, 20, 12),
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: Text(title, style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+            fontSize: 34, fontWeight: FontWeight.w200, letterSpacing: -.8,
+          )),
+        ),
+      ),
+      if (showRecents) Padding(
+        padding: const EdgeInsets.fromLTRB(18, 0, 18, 12),
+        child: RecentFilterChips(
+          selected: _recentFilter,
+          onSelected: (value) => setState(() => _recentFilter = value),
+        ),
+      ),
+      Expanded(
+        child: _loading ? const Center(child: CircularProgressIndicator()) :
         _loadError != null ? _errorPanel(_loadError!, _selectedTab) :
-        entries.isEmpty ? _emptyPanel('Nothing here yet', empty) :
+        visibleEntries.isEmpty ? _emptyPanel(
+          showRecents && entries.isNotEmpty ? 'No matching calls' : 'Nothing here yet',
+          showRecents && entries.isNotEmpty ? 'Try another call filter.' : empty,
+        ) :
         ListView.builder(
-          itemCount: entries.length,
+          itemCount: visibleEntries.length,
           itemBuilder: (context, index) {
-            final tile = _entryTile(
-              entries[index],
-              leading: showCallType ? _callTypeIcon(entries[index].callType) : icon,
-              favoriteButton: !showCallType,
-            );
-            return showCallType
+            final entry = visibleEntries[index];
+            final tile = _entryTile(entry, favoriteButton: false,
+              showRecents: showRecents);
+            return showRecents
                 ? _StaggeredEntry(index: index, child: tile)
                 : tile;
           },
-        )),
+        ),
+      ),
     ]);
+  }
 
-  Widget _entryTile(PhoneEntry entry, {IconData? leading, bool favoriteButton = false}) {
+  Widget _entryTile(
+    PhoneEntry entry, {
+    bool favoriteButton = false,
+    bool showRecents = false,
+  }) {
     final isFavorite = _favorites.any((item) => item.number == entry.number);
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 2),
-      leading: CircleAvatar(backgroundColor: MoogsTheme.ice.withValues(alpha: .18),
-        child: Icon(leading ?? Icons.person_rounded, color: MoogsTheme.ice)),
-      title: Text(entry.displayName, maxLines: 1, overflow: TextOverflow.ellipsis),
-      subtitle: Text(entry.number, maxLines: 1, overflow: TextOverflow.ellipsis),
-      trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-        if (favoriteButton) IconButton(icon: Icon(isFavorite ? Icons.star_rounded : Icons.star_border_rounded, color: isFavorite ? Colors.amber : null),
-          onPressed: () => _toggleFavorite(entry)),
-        IconButton(icon: const Icon(Icons.call_rounded, color: MoogsTheme.call), onPressed: () => _dialEntry(entry)),
-      ]),
+    return ContactRow(
+      name: entry.displayName,
+      number: entry.number,
+      missed: showRecents && entry.callType == 3,
+      favorite: isFavorite,
+      showFavorite: favoriteButton,
+      relativeTime: showRecents ? _relativeCallTime(entry.dateMillis) : null,
+      simLabel: showRecents ? entry.simLabel : null,
+      onFavorite: favoriteButton ? () => _toggleFavorite(entry) : null,
+      onCall: () => _dialEntry(entry),
       onTap: () => _dialEntry(entry),
     );
   }
 
-  IconData _callTypeIcon(int type) => switch (type) {
-    3 => Icons.call_missed_rounded,
-    2 => Icons.call_made_rounded,
-    1 => Icons.call_received_rounded,
-    _ => Icons.call_rounded,
-  };
+  String _relativeCallTime(int millis) {
+    if (millis <= 0) return '';
+    final difference = DateTime.now().difference(
+      DateTime.fromMillisecondsSinceEpoch(millis),
+    );
+    if (difference.isNegative) return '';
+    if (difference.inMinutes < 1) return 'Just now';
+    if (difference.inHours < 1) return '${difference.inMinutes}m ago';
+    if (difference.inHours < 24) return '${difference.inHours}h ago';
+    if (difference.inDays == 1) return 'Yesterday';
+    if (difference.inDays < 7) return '${difference.inDays}d ago';
+    return '${(difference.inDays / 7).floor()}w ago';
+  }
 
   Widget _emptyPanel(String title, String message) => Center(child: Padding(
     padding: const EdgeInsets.all(28), child: Column(mainAxisSize: MainAxisSize.min, children: [
