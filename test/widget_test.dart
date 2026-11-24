@@ -128,6 +128,56 @@ void main() {
     expect(answers, 0);
   });
 
+  testWidgets('Recents filter chips expose all four local filters', (tester) async {
+    String? selected;
+    await tester.pumpWidget(MaterialApp(
+      theme: MoogsTheme.light,
+      home: Scaffold(body: RecentFilterChips(
+        selected: 'All',
+        onSelected: (value) => selected = value,
+      )),
+    ));
+
+    for (final filter in RecentFilterChips.values) {
+      expect(find.text(filter), findsOneWidget);
+    }
+    await tester.tap(find.text('Missed'));
+    expect(selected, 'Missed');
+  });
+
+  testWidgets('missed ContactRow colors only the contact name red', (tester) async {
+    await tester.pumpWidget(MaterialApp(
+      theme: MoogsTheme.light,
+      home: Scaffold(body: ContactRow(
+        name: 'Rhea Patel',
+        number: '9876543210',
+        missed: true,
+        onCall: () {},
+      )),
+    ));
+
+    final tokens = MoogsTheme.light.extension<MoogTokens>()!;
+    final name = tester.widget<Text>(find.text('Rhea Patel'));
+    final number = tester.widget<Text>(find.text('9876543210'));
+    expect(name.style?.color, tokens.missed);
+    expect(number.style?.color, tokens.textMuted);
+  });
+
+  testWidgets('ContactRow call action has an accessible semantic label', (tester) async {
+    final semantics = tester.ensureSemantics();
+    await tester.pumpWidget(MaterialApp(
+      theme: MoogsTheme.light,
+      home: Scaffold(body: ContactRow(
+        name: 'Rhea Patel',
+        number: '9876543210',
+        onCall: () {},
+      )),
+    ));
+
+    expect(find.bySemanticsLabel('Call Rhea Patel'), findsOneWidget);
+    semantics.dispose();
+  });
+
   test('both light and dark themes provide MoogTokens', () {
     expect(MoogsTheme.light.extension<MoogTokens>(), isA<MoogTokens>());
     expect(MoogsTheme.dark.extension<MoogTokens>(), isA<MoogTokens>());
