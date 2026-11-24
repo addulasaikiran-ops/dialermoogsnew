@@ -8,6 +8,7 @@ import android.os.Bundle
 import android.Manifest
 import android.content.pm.PackageManager
 import android.telecom.TelecomManager
+import android.telephony.SubscriptionManager
 import android.provider.ContactsContract
 import android.provider.CallLog
 import android.database.Cursor
@@ -42,11 +43,26 @@ class MainActivity : FlutterActivity() {
                         "requestDefaultDialer" -> requestDialerRole(result)
                         "placeCall" -> {
                             val number = call.argument<String>("number")?.trim()
+                            val simSlot = call.argument<Int>("simSlot") ?: 0
                             if (number.isNullOrEmpty()) {
                                 result.error("INVALID_NUMBER", "A phone number is required", null)
+                            } else if (simSlot !in 0..1) {
+                                result.error("INVALID_SIM", "Choose SIM 1 or SIM 2", null)
                             } else {
                                 val telecom = getSystemService(TELECOM_SERVICE) as TelecomManager
-                                telecom.placeCall(Uri.fromParts("tel", number, null), null)
+                                val accounts = telecom.callCapablePhoneAccounts
+                                val selectedHandle = runCatching {
+                                    val subscriptions = getSystemService(TELEPHONY_SUBSCRIPTION_SERVICE) as SubscriptionManager
+                                    val subscriptionId = subscriptions.activeSubscriptionInfoList
+                                        ?.firstOrNull { it.simSlotIndex == simSlot }?.subscriptionId
+                                    subscriptionId?.let { id -> accounts.firstOrNull { it.id.toIntOrNull() == id } }
+                                }.getOrNull() ?: accounts.getOrNull(simSlot)
+
+                                val extras = Bundle()
+                                if (selectedHandle != null) {
+                                    extras.putParcelable(TelecomManager.EXTRA_PHONE_ACCOUNT_HANDLE, selectedHandle)
+                                }
+                                telecom.placeCall(Uri.fromParts("tel", number, null), extras)
                                 result.success(null)
                             }
                         }
