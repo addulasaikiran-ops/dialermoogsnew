@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import 'core/theme/tokens.dart';
 import 'core/widgets/aurora_backdrop.dart';
+import 'core/widgets/moog_logo.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -246,6 +247,7 @@ class _DialerHomePageState extends State<DialerHomePage> {
           throw PlatformException(code: 'CALL_LOG_PERMISSION', message: 'Allow call history access to show recent calls.');
         }
         final recent = await PhoneDataBridge.recents();
+        moogMissedCount.value = recent.where((entry) => entry.callType == 3).length;
         if (mounted) setState(() => _recents = recent);
       }
     } on PlatformException catch (error) {
@@ -307,9 +309,7 @@ class _DialerHomePageState extends State<DialerHomePage> {
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 12, 16, 8),
             child: Row(children: [
-              Container(width: 40, height: 40,
-                decoration: BoxDecoration(shape: BoxShape.circle, color: MoogsTheme.ice.withValues(alpha: .16), border: Border.all(color: MoogsTheme.ice.withValues(alpha: .5))),
-                child: const Icon(Icons.call_rounded, color: MoogsTheme.ice)),
+              const MoogLogo(size: 40),
               const SizedBox(width: 12),
               Expanded(child: Text("Moog's Phone", style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700, letterSpacing: -.5))),
               IconButton(
