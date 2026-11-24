@@ -29,7 +29,7 @@ class GlassNavBar extends StatelessWidget {
           blur: true,
           shadow: true,
           child: SizedBox(
-            height: 64,
+            height: 62,
             child: Stack(
               children: [
                 AnimatedAlign(
