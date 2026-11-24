@@ -39,10 +39,13 @@ class _CallGateState<T> extends State<CallGate<T>> {
     super.initState();
     _subscription = widget.events.listen(
       (value) {
+        debugPrint('MoogsCallDebug Flutter event hasCall=${widget.hasCall(value)}');
         _eventVersion++;
         if (mounted) setState(() => _call = widget.hasCall(value) ? value : null);
       },
-      onError: (_) {},
+      onError: (error, stack) {
+        debugPrint('MoogsCallDebug Flutter event error: $error');
+      },
     );
     _restoreCurrentCall();
   }
@@ -51,10 +54,12 @@ class _CallGateState<T> extends State<CallGate<T>> {
     final versionAtStart = _eventVersion;
     try {
       final value = await widget.loadCurrent();
+      debugPrint('MoogsCallDebug Flutter snapshot hasCall=${widget.hasCall(value)}');
       if (mounted && versionAtStart == _eventVersion) {
         setState(() => _call = widget.hasCall(value) ? value : null);
       }
-    } on PlatformException {
+    } catch (error) {
+      debugPrint('MoogsCallDebug Flutter snapshot error: $error');
       // Keep the regular dialer available when Telecom is not ready yet.
     }
   }
