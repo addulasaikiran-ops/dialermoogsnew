@@ -247,7 +247,7 @@ class MainActivity : FlutterActivity() {
             val numberIndex = cursor.getColumnIndex(CallLog.Calls.NUMBER)
             val dateIndex = cursor.getColumnIndex(CallLog.Calls.DATE)
             val typeIndex = cursor.getColumnIndex(CallLog.Calls.TYPE)
-            while (cursor.moveToNext()) {
+            while (cursor.moveToNext() && rows.size < 300) {
                 rows.add(mapOf(
                     "name" to cursor.getString(nameIndex).orEmpty(),
                     "number" to cursor.getString(numberIndex).orEmpty(),

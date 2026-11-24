@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -6,6 +8,12 @@ import 'package:moogs_phone/core/widgets/contact_row.dart';
 import 'package:moogs_phone/core/widgets/moog_logo.dart';
 import 'package:moogs_phone/features/recents/recents_filter_chips.dart';
 import 'package:moogs_phone/main.dart';
+
+CallSnapshot _snapshot(bool hasCall) => CallSnapshot(
+      hasCall: hasCall, number: '', displayName: '', direction: 'unknown',
+      state: 'unknown', muted: false, speaker: false, canHold: false,
+      isHeld: false, connectedDurationMillis: 0,
+    );
 
 Future<void> _pumpDialer(WidgetTester tester) async {
   await tester.pumpWidget(
@@ -237,7 +245,90 @@ void main() {
     expect(moogMissedCount.value, 0);
     expect(find.byKey(const ValueKey('missed-call-badge')), findsNothing);
     expect(lastSeen, greaterThan(3000));
+    final openedAt = lastSeen;
+    await tester.pump(const Duration(milliseconds: 20));
+    await tester.tap(find.text('Keypad'));
+    await tester.pump();
+    expect(lastSeen, greaterThan(openedAt));
 
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, null);
+  });
+
+
+  testWidgets('first run initializes last-seen time and suppresses old missed calls',
+      (tester) async {
+    const channel = MethodChannel('com.moogs.phone/phone_data');
+    var lastSeen = 0;
+    var persistedLastSeen = 0;
+    final oldMissedRows = List.generate(5, (index) => {
+      'name': 'Old Missed $index', 'number': '555000$index',
+      'dateMillis': 1000 + index, 'callType': 3,
+    });
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (call) async {
+      switch (call.method) {
+        case 'getReduceEffects': return false;
+        case 'hasCallLogPermission': return true;
+        case 'getRecentsLastSeenMillis': return lastSeen;
+        case 'setRecentsLastSeenMillis':
+          lastSeen = (call.arguments as Map)['millis'] as int;
+          persistedLastSeen = lastSeen;
+          return null;
+        case 'getRecents': return oldMissedRows;
+        default: return null;
+      }
+    });
+    moogMissedCount.value = 0;
+    await tester.pumpWidget(MaterialApp(
+      theme: MoogsTheme.light, home: const DialerHomePage(),
+    ));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(persistedLastSeen, greaterThan(0));
+    expect(moogMissedCount.value, 0);
+    expect(find.byKey(const ValueKey('missed-call-badge')), findsNothing);
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, null);
+  });
+
+  testWidgets('refreshes recents one and three seconds after a call ends',
+      (tester) async {
+    const channel = MethodChannel('com.moogs.phone/phone_data');
+    final events = StreamController<CallSnapshot>.broadcast();
+    var recentsReads = 0;
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (call) async {
+      switch (call.method) {
+        case 'getReduceEffects': return false;
+        case 'hasCallLogPermission': return true;
+        case 'getRecentsLastSeenMillis': return 1000;
+        case 'getRecents':
+          recentsReads++;
+          return <Map<String, Object?>>[];
+        default: return null;
+      }
+    });
+    moogMissedCount.value = 0;
+    await tester.pumpWidget(MaterialApp(
+      theme: MoogsTheme.light,
+      home: DialerHomePage(callEvents: events.stream),
+    ));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(recentsReads, 1);
+    events.add(_snapshot(true));
+    await tester.pump();
+    events.add(_snapshot(false));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pump();
+    expect(recentsReads, 2);
+    await tester.pump(const Duration(seconds: 2));
+    await tester.pump();
+    expect(recentsReads, 3);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await events.close();
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, null);
   });

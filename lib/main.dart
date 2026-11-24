@@ -228,7 +228,9 @@ class PhoneEntry {
 }
 
 class DialerHomePage extends StatefulWidget {
-  const DialerHomePage({super.key});
+  const DialerHomePage({super.key, this.callEvents});
+
+  final Stream<CallSnapshot>? callEvents;
 
   @override
   State<DialerHomePage> createState() => _DialerHomePageState();
@@ -246,8 +248,19 @@ class _DialerHomePageState extends State<DialerHomePage> with WidgetsBindingObse
   List<PhoneEntry> _recents = const [];
   List<PhoneEntry> _favorites = const [];
   String _recentFilter = 'All';
+  StreamSubscription<CallSnapshot>? _callSubscription;
+  Timer? _callEndedRefreshAfterOneSecond;
+  Timer? _callEndedRefreshAfterThreeSeconds;
+  bool? _lastHasCall;
+
+  Future<void> _markRecentsSeen() async {
+    final seenAt = DateTime.now().millisecondsSinceEpoch;
+    await PhoneDataBridge.setRecentsLastSeenMillis(seenAt);
+    moogMissedCount.value = 0;
+  }
 
   Future<void> _loadTab(int tab, {bool askPermission = true}) async {
+    if (_selectedTab == 1 && tab != 1) await _markRecentsSeen();
     setState(() { _selectedTab = tab; _loading = true; _loadError = null; });
     try {
       if (tab == 0 || tab == 2) {
@@ -261,9 +274,7 @@ class _DialerHomePageState extends State<DialerHomePage> with WidgetsBindingObse
         if (askPermission && !await PhoneDataBridge.requestPermission('callLog')) {
           throw PlatformException(code: 'CALL_LOG_PERMISSION', message: 'Allow call history access to show recent calls.');
         }
-        final seenAt = DateTime.now().millisecondsSinceEpoch;
-        await PhoneDataBridge.setRecentsLastSeenMillis(seenAt);
-        moogMissedCount.value = 0;
+        await _markRecentsSeen();
         final recent = await PhoneDataBridge.recents();
         if (mounted) setState(() { _recents = recent; _recentFilter = 'All'; });
       }
@@ -279,9 +290,14 @@ class _DialerHomePageState extends State<DialerHomePage> with WidgetsBindingObse
   Future<void> _refreshRecentsIfPermitted() async {
     try {
       if (!await PhoneDataBridge.hasCallLogPermission()) return;
-      final lastSeen = await PhoneDataBridge.recentsLastSeenMillis();
+      var lastSeen = await PhoneDataBridge.recentsLastSeenMillis();
+      final isFirstRun = lastSeen == 0;
+      if (isFirstRun) {
+        lastSeen = DateTime.now().millisecondsSinceEpoch;
+        await PhoneDataBridge.setRecentsLastSeenMillis(lastSeen);
+      }
       final recent = await PhoneDataBridge.recents();
-      final missed = _selectedTab == 1
+      final missed = isFirstRun || _selectedTab == 1
           ? 0
           : recent.where((entry) =>
               entry.callType == 3 && entry.dateMillis > lastSeen).length;
@@ -332,13 +348,29 @@ class _DialerHomePageState extends State<DialerHomePage> with WidgetsBindingObse
   }
 
   void _dialEntry(PhoneEntry entry) {
+    if (_selectedTab == 1) _markRecentsSeen();
     setState(() { _number = entry.number; _selectedTab = 3; });
+  }
+
+  void _handleCallEvent(CallSnapshot call) {
+    final wasInCall = _lastHasCall == true;
+    _lastHasCall = call.hasCall;
+    if (wasInCall && !call.hasCall) {
+      _callEndedRefreshAfterOneSecond?.cancel();
+      _callEndedRefreshAfterThreeSeconds?.cancel();
+      _callEndedRefreshAfterOneSecond = Timer(
+        const Duration(seconds: 1), _refreshRecentsIfPermitted);
+      _callEndedRefreshAfterThreeSeconds = Timer(
+        const Duration(seconds: 3), _refreshRecentsIfPermitted);
+    }
   }
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _callSubscription = (widget.callEvents ?? TelecomBridge.callEvents)
+        .listen(_handleCallEvent);
     _refreshRecentsIfPermitted();
     PhoneDataBridge.reduceEffects().then((enabled) {
       moogReduceEffects.value = enabled;
@@ -348,6 +380,9 @@ class _DialerHomePageState extends State<DialerHomePage> with WidgetsBindingObse
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _callSubscription?.cancel();
+    _callEndedRefreshAfterOneSecond?.cancel();
+    _callEndedRefreshAfterThreeSeconds?.cancel();
     super.dispose();
   }
 
