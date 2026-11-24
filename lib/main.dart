@@ -64,7 +64,7 @@ class MoogsTheme {
             glassFillHi: Color(0xB3FFFFFF), glassFillLo: Color(0x73FFFFFF),
             borderHi: Color(0xE6FFFFFF), borderLo: Color(0x33FFFFFF),
             shadow: Color(0x1F000000), text: Color(0xFF1B1D22),
-            textMuted: Color(0x991B1D22), accentA: Color(0xFF8CCBFA),
+            textMuted: Color(0xFF55565C), accentA: Color(0xFF8CCBFA),
             accentB: Color(0xFF2FD07A),
           ),
         ],
@@ -86,7 +86,7 @@ class MoogsTheme {
             glassFillHi: Color(0x24FFFFFF), glassFillLo: Color(0x0FFFFFFF),
             borderHi: Color(0x59FFFFFF), borderLo: Color(0x1AFFFFFF),
             shadow: Color(0x66000000), text: Color(0xFFEEF1F7),
-            textMuted: Color(0x99EEF1F7), accentA: Color(0xFF8CCBFA),
+            textMuted: Color(0xFFBFC7D5), accentA: Color(0xFF8CCBFA),
             accentB: Color(0xFF2FD07A),
           ),
         ],
@@ -177,6 +177,12 @@ class PhoneDataBridge {
 
   static Future<void> setFavorite(PhoneEntry entry, bool favorite) =>
       _channel.invokeMethod<void>('setFavorite', {'number': entry.number, 'name': entry.displayName, 'favorite': favorite});
+
+  static Future<bool> reduceEffects() async =>
+      await _channel.invokeMethod<bool>('getReduceEffects') ?? false;
+
+  static Future<void> setReduceEffects(bool enabled) =>
+      _channel.invokeMethod<void>('setReduceEffects', {'enabled': enabled});
 
   static List<PhoneEntry> _entries(List<dynamic>? values) => (values ?? const [])
       .whereType<Map>()
@@ -281,6 +287,49 @@ class _DialerHomePageState extends State<DialerHomePage> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    PhoneDataBridge.reduceEffects().then((enabled) {
+      moogReduceEffects.value = enabled;
+    }).catchError((_) {});
+  }
+
+  Future<void> _showSettings() async {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Settings'),
+        content: ValueListenableBuilder<bool>(
+          valueListenable: moogReduceEffects,
+          builder: (context, enabled, _) => SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Reduce effects'),
+            subtitle: const Text('Use a solid translucent fill instead of glass blur to improve performance.'),
+            value: enabled,
+            onChanged: (value) {
+              moogReduceEffects.value = value;
+              PhoneDataBridge.setReduceEffects(value);
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(dialogContext);
+              _requestDefaultDialer();
+            },
+            child: const Text('Set as default dialer'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Done'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final foreground = dark ? Colors.white : const Color(0xFF20232B);
@@ -296,7 +345,7 @@ class _DialerHomePageState extends State<DialerHomePage> {
           Expanded(child: Text("Moog's Phone", style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700, letterSpacing: -.5))),
           IconButton(
             tooltip: 'Set as default dialer',
-            onPressed: _requestingRole ? null : _requestDefaultDialer,
+            onPressed: _showSettings,
             icon: _requestingRole ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.settings_phone_rounded),
           ),
         ]),
@@ -330,14 +379,15 @@ class _DialerHomePageState extends State<DialerHomePage> {
       const gap = 14.0;
       final widthKeySize = math.min((constraints.maxWidth - 2 * gap) / 3, 84.0);
       final heightKeySize = (constraints.maxHeight - 280) / 4;
-      final keySize = math.max(36.0, math.min(widthKeySize, heightKeySize));
+      final keySize = math.max(48.0, math.min(widthKeySize, heightKeySize));
       final rows = [
         ['1', '2', '3'], ['4', '5', '6'],
         ['7', '8', '9'], ['*', '0', '#'],
       ];
-      return Padding(
+      return SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(20, 6, 20, 8),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
             const SizedBox(height: 4),
             NumberDisplay(number: _number),
@@ -365,7 +415,7 @@ class _DialerHomePageState extends State<DialerHomePage> {
               ),
               const SizedBox(height: 8),
             ],
-            const Spacer(),
+            const SizedBox(height: 8),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -427,7 +477,7 @@ class _DialerHomePageState extends State<DialerHomePage> {
       child: GlassSurface(
         radius: 999,
         tint: selected ? t.accentA.withValues(alpha: .28) : null,
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
         child: Text(
           'SIM ${slot + 1}',
           style: TextStyle(
@@ -848,7 +898,7 @@ class _CallScreenState extends State<CallScreen> {
                     ),
                   ],
                   const Spacer(),
-                  Text("MOOG'S PHONE", style: TextStyle(fontSize: 10, letterSpacing: 2.2, color: t.textMuted.withValues(alpha: .65))),
+                  Text("MOOG'S PHONE", style: TextStyle(fontSize: 10, letterSpacing: 2.2, color: t.textMuted)),
                 ],
               ),
             ),

@@ -31,7 +31,17 @@ class _KeypadKeyState extends State<KeypadKey> {
   @override
   Widget build(BuildContext context) {
     final t = context.moog;
-    return SizedBox(
+    final spokenLabel = switch (widget.digit) {
+      '*' => 'Star',
+      '#' => 'Pound',
+      _ => 'Digit ${widget.digit}',
+    };
+    return Semantics(
+      button: true,
+      label: spokenLabel,
+      onTap: widget.onTap,
+      child: ExcludeSemantics(
+        child: SizedBox(
       width: widget.size,
       child: AspectRatio(
         aspectRatio: 1,
@@ -81,6 +91,8 @@ class _KeypadKeyState extends State<KeypadKey> {
               ),
             ),
           ),
+        ),
+      ),
         ),
       ),
     );

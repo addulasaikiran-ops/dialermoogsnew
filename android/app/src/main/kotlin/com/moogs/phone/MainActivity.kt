@@ -105,6 +105,12 @@ class MainActivity : FlutterActivity() {
                 try {
                     when (call.method) {
                         "requestPermission" -> requestPhoneDataPermission(call.argument<String>("kind") ?: "", result)
+                        "getReduceEffects" -> result.success(getSharedPreferences("moogs_phone_settings", MODE_PRIVATE).getBoolean("reduce_effects", false))
+                        "setReduceEffects" -> {
+                            val enabled = call.argument<Boolean>("enabled") ?: false
+                            getSharedPreferences("moogs_phone_settings", MODE_PRIVATE).edit().putBoolean("reduce_effects", enabled).apply()
+                            result.success(null)
+                        }
                         "getContacts" -> {
                             if (!hasPermission(Manifest.permission.READ_CONTACTS)) result.error("CONTACTS_PERMISSION", "Contacts permission is required", null)
                             else result.success(readContacts())

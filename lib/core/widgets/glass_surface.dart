@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 
 import '../theme/tokens.dart';
 
+/// App-wide fallback for slower devices: replaces backdrop blur with glass fill.
+final ValueNotifier<bool> moogReduceEffects = ValueNotifier<bool>(false);
+
 class GlassSurface extends StatelessWidget {
   const GlassSurface({
     super.key,
@@ -24,6 +27,13 @@ class GlassSurface extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return ValueListenableBuilder<bool>(
+      valueListenable: moogReduceEffects,
+      builder: (context, reduceEffects, _) => _buildSurface(context, reduceEffects),
+    );
+  }
+
+  Widget _buildSurface(BuildContext context, bool reduceEffects) {
     final t = context.moog;
     final shape = BorderRadius.circular(radius);
     Widget fill = DecoratedBox(
@@ -37,7 +47,7 @@ class GlassSurface extends StatelessWidget {
       ),
       child: Padding(padding: padding, child: child),
     );
-    if (blur) {
+    if (blur && !reduceEffects) {
       fill = ClipRRect(
         borderRadius: shape,
         child: BackdropFilter(
