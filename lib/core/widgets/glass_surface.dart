@@ -11,6 +11,7 @@ class GlassSurface extends StatelessWidget {
     this.radius = 24,
     this.blur = false,
     this.shadow = false,
+    this.tint,
     this.padding = EdgeInsets.zero,
   });
 
@@ -18,6 +19,7 @@ class GlassSurface extends StatelessWidget {
   final double radius;
   final bool blur;
   final bool shadow;
+  final Color? tint;
   final EdgeInsetsGeometry padding;
 
   @override
@@ -30,7 +32,7 @@ class GlassSurface extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [t.glassFillHi, t.glassFillLo],
+          colors: [tint ?? t.glassFillHi, tint == null ? t.glassFillLo : tint!.withValues(alpha: tint!.a * .55)],
         ),
       ),
       child: Padding(padding: padding, child: child),
