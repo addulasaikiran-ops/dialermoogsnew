@@ -564,7 +564,7 @@ class _DialerHomePageState extends State<DialerHomePage> {
           itemCount: visibleEntries.length,
           itemBuilder: (context, index) {
             final entry = visibleEntries[index];
-            final tile = _entryTile(entry, favoriteButton: !showRecents,
+            final tile = _entryTile(entry, favoriteButton: false,
               showRecents: showRecents);
             return showRecents
                 ? _StaggeredEntry(index: index, child: tile)
