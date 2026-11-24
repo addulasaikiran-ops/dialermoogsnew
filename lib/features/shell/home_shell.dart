@@ -9,12 +9,14 @@ class HomeShell extends StatelessWidget {
     required this.selectedIndex,
     required this.onSelected,
     required this.pages,
+    this.header,
     this.missedCount = 0,
   });
 
   final int selectedIndex;
   final ValueChanged<int> onSelected;
   final List<Widget> pages;
+  final Widget? header;
   final int missedCount;
 
   @override
@@ -28,9 +30,16 @@ class HomeShell extends StatelessWidget {
           const AuroraBackdrop(),
           SafeArea(
             bottom: false,
-            child: IndexedStack(
-              index: selectedIndex,
-              children: pages,
+            child: Column(
+              children: [
+                if (header != null) header!,
+                Expanded(
+                  child: IndexedStack(
+                    index: selectedIndex,
+                    children: pages,
+                  ),
+                ),
+              ],
             ),
           ),
           Positioned(
