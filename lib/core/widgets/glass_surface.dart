@@ -4,10 +4,9 @@ import 'package:flutter/material.dart';
 
 import '../theme/tokens.dart';
 
-/// A lightweight Liquid Glass surface.
-///
-/// Keep [blur] and [shadow] disabled for repeated controls such as keypad keys.
-/// On Redmi 9 Activ, limit backdrop-blurred surfaces to two per screen.
+/// App-wide fallback for slower devices: replaces backdrop blur with glass fill.
+final ValueNotifier<bool> moogReduceEffects = ValueNotifier<bool>(false);
+
 class GlassSurface extends StatelessWidget {
   const GlassSurface({
     super.key,
@@ -15,62 +14,62 @@ class GlassSurface extends StatelessWidget {
     this.radius = 24,
     this.blur = false,
     this.shadow = false,
+    this.tint,
+    this.padding = EdgeInsets.zero,
   });
 
   final Widget child;
   final double radius;
   final bool blur;
   final bool shadow;
+  final Color? tint;
+  final EdgeInsetsGeometry padding;
 
   @override
   Widget build(BuildContext context) {
-    final t = context.moog;
-    final innerRadius = (radius - 1).clamp(0.0, radius).toDouble();
+    return ValueListenableBuilder<bool>(
+      valueListenable: moogReduceEffects,
+      builder: (context, reduceEffects, _) => _buildSurface(context, reduceEffects),
+    );
+  }
 
-    Widget inner = DecoratedBox(
+  Widget _buildSurface(BuildContext context, bool reduceEffects) {
+    final t = context.moog;
+    final shape = BorderRadius.circular(radius);
+    Widget fill = DecoratedBox(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(innerRadius),
+        borderRadius: shape,
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [t.glassFillHi, t.glassFillLo],
+          colors: [tint ?? t.glassFillHi, tint == null ? t.glassFillLo : tint!.withValues(alpha: tint!.a * .55)],
         ),
       ),
-      child: child,
+      child: Padding(padding: padding, child: child),
     );
-
-    if (blur) {
-      inner = ClipRRect(
-        borderRadius: BorderRadius.circular(innerRadius),
+    if (blur && !reduceEffects) {
+      fill = ClipRRect(
+        borderRadius: shape,
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-          child: inner,
+          child: fill,
         ),
       );
     }
-
-    return DecoratedBox(
+    return Container(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(radius),
+        borderRadius: shape,
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [t.borderHi, t.borderLo],
         ),
         boxShadow: shadow
-            ? [
-                BoxShadow(
-                  color: t.shadow,
-                  blurRadius: 60,
-                  offset: const Offset(0, 24),
-                ),
-              ]
-            : null,
+            ? [BoxShadow(color: t.shadow, blurRadius: 28, offset: const Offset(0, 12))]
+            : const [],
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(1),
-        child: inner,
-      ),
+      padding: const EdgeInsets.all(1),
+      child: fill,
     );
   }
 }

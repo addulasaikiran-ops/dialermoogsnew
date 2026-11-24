@@ -1,0 +1,40 @@
+name: Moog's Phone motion and accessibility checks
+
+on:
+  push:
+    branches: [feat/reduced-motion-system]
+  pull_request:
+    branches: [feat/glass-navigation-shell]
+
+jobs:
+  flutter-quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.29.3'
+          cache: true
+      - name: Prepare Manrope font assets
+        run: |
+          mkdir -p assets/fonts assets/images
+          curl -L --fail --silent --show-error 'https://raw.githubusercontent.com/google/fonts/main/ofl/manrope/Manrope%5Bwght%5D.ttf' -o /tmp/Manrope.ttf
+          for weight in ExtraLight Light Regular Medium Bold; do cp /tmp/Manrope.ttf "assets/fonts/Manrope-$weight.ttf"; done
+      - run: flutter pub get
+      - run: dart format --output=none lib test
+      - run: flutter analyze
+      - run: flutter test --reporter expanded
+
+  motion-source-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify shared reduced-motion behavior
+        run: |
+          grep -q 'Duration moogMs(BuildContext context, int ms)' lib/core/motion.dart
+          grep -q 'moogMs(context, 40000)' lib/core/widgets/aurora_backdrop.dart
+          grep -q 'moogMs(context, 320)' lib/features/shell/glass_nav_bar.dart
+          grep -q 'moogMs(context, 300)' lib/features/dialer/keypad_key.dart
+          grep -q 'moogMs(context, 320)' lib/app.dart
+          grep -q 'Duration(milliseconds: widget.index \* 30)' lib/main.dart
+          grep -q 'MediaQuery.disableAnimationsOf(context)' lib/main.dart
