@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/tokens.dart';
+import '../motion.dart';
 
 /// A compact, reusable contact/call-history row with Liquid Glass interaction.
 class ContactRow extends StatefulWidget {
@@ -16,6 +17,7 @@ class ContactRow extends StatefulWidget {
     this.missed = false,
     this.relativeTime,
     this.simLabel,
+    this.callType,
   });
 
   final String name;
@@ -28,6 +30,7 @@ class ContactRow extends StatefulWidget {
   final bool missed;
   final String? relativeTime;
   final String? simLabel;
+  final int? callType;
 
   @override
   State<ContactRow> createState() => _ContactRowState();
@@ -50,12 +53,12 @@ class _ContactRowState extends State<ContactRow> {
   Widget build(BuildContext context) {
     final t = context.moog;
     final detailParts = <Widget>[];
-    if (widget.number.isNotEmpty) {
+    if (widget.number.isNotEmpty && widget.number.trim() != widget.name.trim()) {
       detailParts.add(Text(widget.number, maxLines: 1, overflow: TextOverflow.ellipsis,
         style: TextStyle(fontSize: 13, color: t.textMuted)));
     }
     if ((widget.relativeTime ?? '').isNotEmpty) {
-      detailParts.add(Text(widget.relativeTime!, style: TextStyle(fontSize: 13, color: t.textMuted)));
+      detailParts.add(Text(widget.relativeTime!, style: TextStyle(fontSize: 13, color: t.textMuted)));\n      final direction = switch (widget.callType) {\n        1 => 'Incoming call',\n        2 => 'Outgoing call',\n        3 => 'Missed call',\n        _ => null,\n      };\n      if (direction != null) {\n        detailParts.add(Semantics(\n          label: direction,\n          child: CustomPaint(\n            size: const Size.square(13),\n            painter: _CallDirectionPainter(\n              callType: widget.callType!,\n              color: widget.callType == 3 ? t.missed : t.textMuted,\n            ),\n          ),\n        ));\n      }
     }
     if ((widget.simLabel ?? '').isNotEmpty) {
       detailParts.add(Container(
@@ -65,7 +68,7 @@ class _ContactRowState extends State<ContactRow> {
           borderRadius: BorderRadius.circular(8),
           border: Border.all(color: t.borderLo, width: .7),
         ),
-        child: Text(widget.simLabel!, style: TextStyle(fontSize: 10, color: t.textMuted, fontWeight: FontWeight.w600)),
+        child: Text(widget.simLabel!, style: TextStyle(fontSize: 12, color: t.textMuted, fontWeight: FontWeight.w600)),
       ));
     }
 
@@ -77,7 +80,7 @@ class _ContactRowState extends State<ContactRow> {
       onTapCancel: () => setState(() => _pressed = false),
       child: AnimatedScale(
         scale: _pressed ? .98 : 1,
-        duration: const Duration(milliseconds: 110),
+        duration: moogMs(context, 110),
         curve: Curves.easeOut,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 110),
@@ -106,7 +109,7 @@ class _ContactRowState extends State<ContactRow> {
                   decoration: BoxDecoration(shape: BoxShape.circle, color: t.glassFillHi),
                   child: Center(
                     child: Text(_initials, style: TextStyle(
-                      color: t.accentA, fontSize: 14, fontWeight: FontWeight.w700,
+                      color: t.text, fontSize: 14, fontWeight: FontWeight.w700,
                     )),
                   ),
                 ),
@@ -159,4 +162,52 @@ class _ContactRowState extends State<ContactRow> {
       ),
     );
   }
+}
+
+
+class _CallDirectionPainter extends CustomPainter {
+  const _CallDirectionPainter({required this.callType, required this.color});
+
+  final int callType;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final scale = size.shortestSide / 13;
+    canvas.save();
+    canvas.scale(scale);
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.7
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    final path = Path();
+    switch (callType) {
+      case 1: // Incoming: arrow points into the handset.
+        path.moveTo(6.5, 2);
+        path.lineTo(6.5, 10.5);
+        path.moveTo(3.5, 7.5);
+        path.lineTo(6.5, 10.5);
+        path.lineTo(9.5, 7.5);
+      case 2: // Outgoing: arrow points away from the handset.
+        path.moveTo(3, 10);
+        path.lineTo(10, 3);
+        path.moveTo(5.5, 3);
+        path.lineTo(10, 3);
+        path.lineTo(10, 7.5);
+      case 3: // Missed: descending arrow.
+        path.moveTo(3, 3);
+        path.lineTo(10, 10);
+        path.moveTo(5.5, 10);
+        path.lineTo(10, 10);
+        path.lineTo(10, 5.5);
+    }
+    canvas.drawPath(path, paint);
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(covariant _CallDirectionPainter oldDelegate) =>
+      oldDelegate.callType != callType || oldDelegate.color != color;
 }
