@@ -1,5 +1,8 @@
 import 'dart:async';
 
+// Flutter 3.50 currently deprecates the Material library while its replacement
+// is still evolving; retain the stable Material 3 API until migration is supported.
+// ignore: deprecated_member_use
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -65,7 +68,7 @@ class CallSnapshot {
     required this.speaker,
     required this.canHold,
     required this.isHeld,
-    required this.connectTimeMillis,
+    required this.connectedDurationMillis,
   });
 
   final bool hasCall;
@@ -77,7 +80,7 @@ class CallSnapshot {
   final bool speaker;
   final bool canHold;
   final bool isHeld;
-  final int connectTimeMillis;
+  final int connectedDurationMillis;
 
   factory CallSnapshot.fromMap(Map<dynamic, dynamic> map) => CallSnapshot(
         hasCall: map['hasCall'] == true,
@@ -89,7 +92,7 @@ class CallSnapshot {
         speaker: map['speaker'] == true,
         canHold: map['canHold'] == true,
         isHeld: map['isHeld'] == true,
-        connectTimeMillis: (map['connectTimeMillis'] as num?)?.toInt() ?? 0,
+        connectedDurationMillis: (map['connectedDurationMillis'] as num?)?.toInt() ?? 0,
       );
 
   String get title => displayName.isNotEmpty ? displayName : (number.isNotEmpty ? number : 'Unknown caller');
@@ -221,7 +224,7 @@ class _DialerHomePageState extends State<DialerHomePage> {
                       color: MoogsTheme.ice.withValues(alpha: .16),
                       border: Border.all(color: MoogsTheme.ice.withValues(alpha: .5)),
                     ),
-                    child: Icon(Icons.call_rounded, color: MoogsTheme.ice),
+                    child: const Icon(Icons.call_rounded, color: MoogsTheme.ice),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -337,22 +340,28 @@ class _CallScreenState extends State<CallScreen> {
   @override
   void initState() {
     super.initState();
-    _updateElapsed();
-    _clock = Timer.periodic(const Duration(seconds: 1), (_) => _updateElapsed());
+    _syncElapsed();
+    _clock = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted && widget.call.isActive) {
+        setState(() => _elapsedSeconds++);
+      }
+    });
   }
 
   @override
   void didUpdateWidget(covariant CallScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
-    _updateElapsed();
+    if (oldWidget.call.connectedDurationMillis != widget.call.connectedDurationMillis ||
+        oldWidget.call.state != widget.call.state) {
+      _syncElapsed();
+    }
   }
 
-  void _updateElapsed() {
-    final started = widget.call.connectTimeMillis;
-    if (started > 0 && mounted) {
-      setState(() => _elapsedSeconds =
-          (DateTime.now().millisecondsSinceEpoch - started).clamp(0, 1 << 30) ~/ 1000);
-    }
+  // Android's connectTimeMillis is based on elapsedRealtime(), not wall-clock
+  // time. The native layer supplies a duration to avoid mixing clock domains.
+  void _syncElapsed() {
+    final duration = widget.call.connectedDurationMillis;
+    if (mounted) setState(() => _elapsedSeconds = duration > 0 ? duration ~/ 1000 : 0);
   }
 
   @override
