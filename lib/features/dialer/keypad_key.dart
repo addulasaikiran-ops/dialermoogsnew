@@ -60,12 +60,12 @@ class _KeypadKeyState extends State<KeypadKey> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(widget.digit, style: TextStyle(
-                      fontSize: 34,
+                      fontSize: widget.size < 56 ? 24 : 34,
                       height: 1,
                       fontWeight: FontWeight.w200,
                       color: t.text,
                     )),
-                    if (widget.label.isNotEmpty) ...[
+                    if (widget.label.isNotEmpty && widget.size >= 56) ...[
                       const SizedBox(height: 3),
                       Text(widget.label, style: TextStyle(
                         fontSize: 10,
