@@ -39,6 +39,7 @@ class _KeypadKeyState extends State<KeypadKey> {
     return Semantics(
       button: true,
       label: spokenLabel,
+      onTap: widget.onTap,
       child: ExcludeSemantics(
         child: SizedBox(
       width: widget.size,
