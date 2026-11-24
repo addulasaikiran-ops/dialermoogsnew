@@ -447,11 +447,12 @@ class _DialerHomePageState extends State<DialerHomePage> {
                 SizedBox(
                   width: 76,
                   child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: _number.isEmpty ? null : () => setState(() => _number = _number.substring(0, _number.length - 1)),
                     onLongPress: _number.isEmpty ? null : () => _longPressKey('backspace'),
-                    child: IconButton(
-                      tooltip: 'Delete last digit (hold to clear)',
-                      onPressed: _number.isEmpty ? null : () => setState(() => _number = _number.substring(0, _number.length - 1)),
-                      icon: const Icon(Icons.backspace_outlined),
+                    child: const SizedBox(
+                      height: 48,
+                      child: Center(child: Icon(Icons.backspace_outlined)),
                     ),
                   ),
                 ),
