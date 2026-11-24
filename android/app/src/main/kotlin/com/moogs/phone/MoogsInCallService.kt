@@ -174,12 +174,6 @@ internal object MoogsCallRegistry {
         muted = audio?.isMuted ?: muted
         speaker = audio?.route == CallAudioState.ROUTE_SPEAKER
         val state = call?.state ?: Call.STATE_DISCONNECTED
-        val connectedAt = details?.connectTimeMillis ?: 0L
-        val connectedDuration = if (connectedAt > 0L) {
-            (SystemClock.elapsedRealtime() - connectedAt).coerceAtLeast(0L)
-        } else {
-            0L
-        }
         return mapOf(
             "hasCall" to (call != null),
             "number" to (details?.handle?.schemeSpecificPart ?: ""),
@@ -194,7 +188,10 @@ internal object MoogsCallRegistry {
             "speaker" to speaker,
             "canHold" to (details?.can(Call.Details.CAPABILITY_SUPPORT_HOLD) == true),
             "isHeld" to (state == Call.STATE_HOLDING),
-            "connectedDurationMillis" to connectedDuration
+            "connectedDurationMillis" to if (state == Call.STATE_ACTIVE || state == Call.STATE_HOLDING) {
+                val connectedAt = details?.connectTimeMillis ?: 0L
+                if (connectedAt > 0L) (SystemClock.elapsedRealtime() - connectedAt).coerceAtLeast(0L) else 0L
+            } else 0L
         )
     }
 

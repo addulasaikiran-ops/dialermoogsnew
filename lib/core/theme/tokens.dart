@@ -17,63 +17,44 @@ class MoogTokens extends ThemeExtension<MoogTokens> {
     required this.accentB,
   });
 
-  final Color bgTop;
-  final Color bgBottom;
-  final Color glassFillHi;
-  final Color glassFillLo;
-  final Color borderHi;
-  final Color borderLo;
-  final Color shadow;
-  final Color text;
-  final Color textMuted;
-  final Color accentA;
-  final Color accentB;
+  final Color bgTop, bgBottom, glassFillHi, glassFillLo, borderHi, borderLo;
+  final Color shadow, text, textMuted, accentA, accentB;
   final List<Color> orbs;
 
   @override
   MoogTokens copyWith({
-    Color? bgTop,
-    Color? bgBottom,
-    List<Color>? orbs,
-    Color? glassFillHi,
-    Color? glassFillLo,
-    Color? borderHi,
-    Color? borderLo,
-    Color? shadow,
-    Color? text,
-    Color? textMuted,
-    Color? accentA,
-    Color? accentB,
-  }) {
-    return MoogTokens(
-      bgTop: bgTop ?? this.bgTop,
-      bgBottom: bgBottom ?? this.bgBottom,
-      orbs: orbs ?? this.orbs,
-      glassFillHi: glassFillHi ?? this.glassFillHi,
-      glassFillLo: glassFillLo ?? this.glassFillLo,
-      borderHi: borderHi ?? this.borderHi,
-      borderLo: borderLo ?? this.borderLo,
-      shadow: shadow ?? this.shadow,
-      text: text ?? this.text,
-      textMuted: textMuted ?? this.textMuted,
-      accentA: accentA ?? this.accentA,
-      accentB: accentB ?? this.accentB,
-    );
-  }
+    Color? bgTop, Color? bgBottom, List<Color>? orbs,
+    Color? glassFillHi, Color? glassFillLo, Color? borderHi,
+    Color? borderLo, Color? shadow, Color? text, Color? textMuted,
+    Color? accentA, Color? accentB,
+  }) => MoogTokens(
+    bgTop: bgTop ?? this.bgTop,
+    bgBottom: bgBottom ?? this.bgBottom,
+    orbs: orbs ?? this.orbs,
+    glassFillHi: glassFillHi ?? this.glassFillHi,
+    glassFillLo: glassFillLo ?? this.glassFillLo,
+    borderHi: borderHi ?? this.borderHi,
+    borderLo: borderLo ?? this.borderLo,
+    shadow: shadow ?? this.shadow,
+    text: text ?? this.text,
+    textMuted: textMuted ?? this.textMuted,
+    accentA: accentA ?? this.accentA,
+    accentB: accentB ?? this.accentB,
+  );
 
   @override
   MoogTokens lerp(covariant MoogTokens? other, double t) {
     if (other == null) return this;
-    final orbCount = orbs.length > other.orbs.length ? orbs.length : other.orbs.length;
-    final blendedOrbs = List<Color>.generate(orbCount, (index) {
-      final from = orbs.isEmpty ? Colors.transparent : orbs[index < orbs.length ? index : orbs.length - 1];
-      final to = other.orbs.isEmpty ? Colors.transparent : other.orbs[index < other.orbs.length ? index : other.orbs.length - 1];
-      return Color.lerp(from, to, t)!;
+    final count = orbs.length > other.orbs.length ? orbs.length : other.orbs.length;
+    final colors = List<Color>.generate(count, (i) {
+      final a = orbs.isEmpty ? Colors.transparent : orbs[i < orbs.length ? i : orbs.length - 1];
+      final b = other.orbs.isEmpty ? Colors.transparent : other.orbs[i < other.orbs.length ? i : other.orbs.length - 1];
+      return Color.lerp(a, b, t)!;
     });
     return MoogTokens(
       bgTop: Color.lerp(bgTop, other.bgTop, t)!,
       bgBottom: Color.lerp(bgBottom, other.bgBottom, t)!,
-      orbs: blendedOrbs,
+      orbs: colors,
       glassFillHi: Color.lerp(glassFillHi, other.glassFillHi, t)!,
       glassFillLo: Color.lerp(glassFillLo, other.glassFillLo, t)!,
       borderHi: Color.lerp(borderHi, other.borderHi, t)!,

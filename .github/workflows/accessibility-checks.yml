@@ -1,0 +1,43 @@
+name: Moog's Phone accessibility checks
+
+on:
+  push:
+    branches: [feat/accessibility-effects-controls]
+  pull_request:
+    branches: [feat/glass-navigation-shell]
+
+jobs:
+  flutter-quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.29.3'
+          cache: true
+      - name: Prepare Manrope font assets
+        run: |
+          mkdir -p assets/fonts assets/images
+          curl -L --fail --silent --show-error 'https://raw.githubusercontent.com/google/fonts/main/ofl/manrope/Manrope%5Bwght%5D.ttf' -o /tmp/Manrope.ttf
+          for weight in ExtraLight Light Regular Medium Bold; do cp /tmp/Manrope.ttf "assets/fonts/Manrope-$weight.ttf"; done
+      - run: flutter pub get
+      - run: dart format --output=none lib test
+      - run: flutter analyze
+      - run: flutter test --reporter expanded
+
+  accessibility-source-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify accessibility and performance fallback
+        run: |
+          grep -q "label: spokenLabel" lib/features/dialer/keypad_key.dart
+          grep -q "'\*' => 'Star'" lib/features/dialer/keypad_key.dart
+          grep -q "'#' => 'Pound'" lib/features/dialer/keypad_key.dart
+          grep -q 'moogReduceEffects' lib/core/widgets/glass_surface.dart
+          grep -q 'if (blur && !reduceEffects)' lib/core/widgets/glass_surface.dart
+          grep -q 'Reduce effects' lib/main.dart
+          grep -q 'getReduceEffects' android/app/src/main/kotlin/com/moogs/phone/MainActivity.kt
+          grep -q 'setReduceEffects' android/app/src/main/kotlin/com/moogs/phone/MainActivity.kt
+          grep -q 'TextScaler.linear(1.3)' test/widget_test.dart
+          grep -q 'find.bySemanticsLabel' test/widget_test.dart
