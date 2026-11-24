@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'core/theme/tokens.dart';
-import 'core/widgets/aurora_backdrop.dart';
 import 'core/widgets/moog_logo.dart';
 import 'features/dialer/keypad_key.dart';
 import 'features/dialer/number_display.dart';
