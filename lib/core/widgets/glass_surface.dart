@@ -25,7 +25,7 @@ class GlassSurface extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = context.moog;
-    final innerRadius = (radius - 1).clamp(0.0, radius);
+    final innerRadius = (radius - 1).clamp(0.0, radius).toDouble();
 
     Widget inner = DecoratedBox(
       decoration: BoxDecoration(
