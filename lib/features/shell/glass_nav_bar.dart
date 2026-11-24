@@ -100,6 +100,7 @@ class GlassNavBar extends StatelessWidget {
                                       ),
                                       alignment: Alignment.center,
                                       child: Text(
+                                        key: const ValueKey('missed-call-badge'),
                                         missedCount > 99 ? '99+' : '$missedCount',
                                         style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.w700),
                                       ),

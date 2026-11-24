@@ -187,6 +187,15 @@ class PhoneDataBridge {
   static Future<void> setFavorite(PhoneEntry entry, bool favorite) =>
       _channel.invokeMethod<void>('setFavorite', {'number': entry.number, 'name': entry.displayName, 'favorite': favorite});
 
+  static Future<bool> hasCallLogPermission() async =>
+      await _channel.invokeMethod<bool>('hasCallLogPermission') ?? false;
+
+  static Future<int> recentsLastSeenMillis() async =>
+      await _channel.invokeMethod<int>('getRecentsLastSeenMillis') ?? 0;
+
+  static Future<void> setRecentsLastSeenMillis(int millis) =>
+      _channel.invokeMethod<void>('setRecentsLastSeenMillis', {'millis': millis});
+
   static Future<bool> reduceEffects() async =>
       await _channel.invokeMethod<bool>('getReduceEffects') ?? false;
 
@@ -219,13 +228,15 @@ class PhoneEntry {
 }
 
 class DialerHomePage extends StatefulWidget {
-  const DialerHomePage({super.key});
+  const DialerHomePage({super.key, this.callEvents});
+
+  final Stream<CallSnapshot>? callEvents;
 
   @override
   State<DialerHomePage> createState() => _DialerHomePageState();
 }
 
-class _DialerHomePageState extends State<DialerHomePage> {
+class _DialerHomePageState extends State<DialerHomePage> with WidgetsBindingObserver {
   int _selectedTab = 3;
   int _selectedSim = 0;
   String _number = '';
@@ -237,9 +248,20 @@ class _DialerHomePageState extends State<DialerHomePage> {
   List<PhoneEntry> _recents = const [];
   List<PhoneEntry> _favorites = const [];
   String _recentFilter = 'All';
+  StreamSubscription<CallSnapshot>? _callSubscription;
+  Timer? _callEndedRefreshAfterOneSecond;
+  Timer? _callEndedRefreshAfterThreeSeconds;
+  bool? _lastHasCall;
+
+  Future<void> _markRecentsSeen() async {
+    final seenAt = DateTime.now().millisecondsSinceEpoch;
+    await PhoneDataBridge.setRecentsLastSeenMillis(seenAt);
+    moogMissedCount.value = 0;
+    if (mounted) setState(() {});
+  }
 
   Future<void> _loadTab(int tab, {bool askPermission = true}) async {
-    if (tab == 1) moogMissedCount.value = 0;
+    if (_selectedTab == 1 && tab != 1) await _markRecentsSeen();
     setState(() { _selectedTab = tab; _loading = true; _loadError = null; });
     try {
       if (tab == 0 || tab == 2) {
@@ -253,6 +275,7 @@ class _DialerHomePageState extends State<DialerHomePage> {
         if (askPermission && !await PhoneDataBridge.requestPermission('callLog')) {
           throw PlatformException(code: 'CALL_LOG_PERMISSION', message: 'Allow call history access to show recent calls.');
         }
+        await _markRecentsSeen();
         final recent = await PhoneDataBridge.recents();
         if (mounted) setState(() { _recents = recent; _recentFilter = 'All'; });
       }
@@ -262,6 +285,37 @@ class _DialerHomePageState extends State<DialerHomePage> {
       if (mounted) setState(() => _loadError = 'Could not load this screen. Please try again.');
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _refreshRecentsIfPermitted() async {
+    try {
+      if (!await PhoneDataBridge.hasCallLogPermission()) return;
+      var lastSeen = await PhoneDataBridge.recentsLastSeenMillis();
+      final isFirstRun = lastSeen == 0;
+      if (isFirstRun) {
+        lastSeen = DateTime.now().millisecondsSinceEpoch;
+        await PhoneDataBridge.setRecentsLastSeenMillis(lastSeen);
+      }
+      final recent = await PhoneDataBridge.recents();
+      final missed = isFirstRun || _selectedTab == 1
+          ? 0
+          : recent.where((entry) =>
+              entry.callType == 3 && entry.dateMillis > lastSeen).length;
+      if (!mounted) return;
+      moogMissedCount.value = missed;
+      setState(() {
+        _recents = recent;
+      });
+    } on PlatformException {
+      // Permission may be revoked between the permission check and the query.
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _refreshRecentsIfPermitted();
     }
   }
 
@@ -295,15 +349,42 @@ class _DialerHomePageState extends State<DialerHomePage> {
   }
 
   void _dialEntry(PhoneEntry entry) {
+    if (_selectedTab == 1) _markRecentsSeen();
     setState(() { _number = entry.number; _selectedTab = 3; });
+  }
+
+  void _handleCallEvent(CallSnapshot call) {
+    final wasInCall = _lastHasCall == true;
+    _lastHasCall = call.hasCall;
+    if (wasInCall && !call.hasCall) {
+      _callEndedRefreshAfterOneSecond?.cancel();
+      _callEndedRefreshAfterThreeSeconds?.cancel();
+      _callEndedRefreshAfterOneSecond = Timer(
+        const Duration(seconds: 1), _refreshRecentsIfPermitted);
+      _callEndedRefreshAfterThreeSeconds = Timer(
+        const Duration(seconds: 3), _refreshRecentsIfPermitted);
+    }
   }
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _callSubscription = (widget.callEvents ?? TelecomBridge.callEvents)
+        .listen(_handleCallEvent);
+    _refreshRecentsIfPermitted();
     PhoneDataBridge.reduceEffects().then((enabled) {
       moogReduceEffects.value = enabled;
     }).catchError((_) {});
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _callSubscription?.cancel();
+    _callEndedRefreshAfterOneSecond?.cancel();
+    _callEndedRefreshAfterThreeSeconds?.cancel();
+    super.dispose();
   }
 
   Future<void> _showSettings() async {
@@ -363,7 +444,7 @@ class _DialerHomePageState extends State<DialerHomePage> {
         ]),
       ),
       pages: [
-        Padding(padding: const EdgeInsets.only(bottom: 96), child: _buildListScreen('Favorites', _favorites, empty: 'Your favorite contacts will appear here.')),
+        Padding(padding: const EdgeInsets.only(bottom: 96), child: _buildListScreen('Favorites', _favorites, favoriteButton: true, empty: 'Your favorite contacts will appear here.')),
         Padding(padding: const EdgeInsets.only(bottom: 96), child: _buildListScreen('Recents', _recents, empty: 'Your recent calls will appear here.', showRecents: true)),
         Padding(padding: const EdgeInsets.only(bottom: 96), child: _buildContactsScreen()),
         Padding(padding: const EdgeInsets.only(bottom: 96), child: _buildKeypad(foreground)),
@@ -524,6 +605,7 @@ class _DialerHomePageState extends State<DialerHomePage> {
     String title,
     List<PhoneEntry> entries, {
     bool showRecents = false,
+    bool favoriteButton = false,
     required String empty,
   }) {
     final visibleEntries = showRecents
@@ -564,7 +646,7 @@ class _DialerHomePageState extends State<DialerHomePage> {
           itemCount: visibleEntries.length,
           itemBuilder: (context, index) {
             final entry = visibleEntries[index];
-            final tile = _entryTile(entry, favoriteButton: false,
+            final tile = _entryTile(entry, favoriteButton: favoriteButton,
               showRecents: showRecents);
             return showRecents
                 ? _StaggeredEntry(index: index, child: tile)
@@ -588,7 +670,8 @@ class _DialerHomePageState extends State<DialerHomePage> {
       favorite: isFavorite,
       showFavorite: favoriteButton,
       relativeTime: showRecents ? _relativeCallTime(entry.dateMillis) : null,
-      simLabel: showRecents ? entry.simLabel : null,
+      callType: showRecents ? entry.callType : null,
+      simLabel: null, // TODO(issue #22): map CallLog PHONE_ACCOUNT_ID to SIM labels in Android.
       onFavorite: favoriteButton ? () => _toggleFavorite(entry) : null,
       onCall: () => _dialEntry(entry),
       onTap: () => _dialEntry(entry),

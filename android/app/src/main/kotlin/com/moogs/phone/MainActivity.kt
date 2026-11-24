@@ -115,6 +115,13 @@ class MainActivity : FlutterActivity() {
                 try {
                     when (call.method) {
                         "requestPermission" -> requestPhoneDataPermission(call.argument<String>("kind") ?: "", result)
+                        "hasCallLogPermission" -> result.success(hasPermission(Manifest.permission.READ_CALL_LOG))
+                        "getRecentsLastSeenMillis" -> result.success(getSharedPreferences("moogs_phone_settings", MODE_PRIVATE).getLong("recents_last_seen_millis", 0L))
+                        "setRecentsLastSeenMillis" -> {
+                            val millis = call.argument<Number>("millis")?.toLong() ?: 0L
+                            getSharedPreferences("moogs_phone_settings", MODE_PRIVATE).edit().putLong("recents_last_seen_millis", millis).apply()
+                            result.success(null)
+                        }
                         "getReduceEffects" -> result.success(getSharedPreferences("moogs_phone_settings", MODE_PRIVATE).getBoolean("reduce_effects", false))
                         "setReduceEffects" -> {
                             val enabled = call.argument<Boolean>("enabled") ?: false
@@ -240,7 +247,7 @@ class MainActivity : FlutterActivity() {
             val numberIndex = cursor.getColumnIndex(CallLog.Calls.NUMBER)
             val dateIndex = cursor.getColumnIndex(CallLog.Calls.DATE)
             val typeIndex = cursor.getColumnIndex(CallLog.Calls.TYPE)
-            while (cursor.moveToNext()) {
+            while (cursor.moveToNext() && rows.size < 300) {
                 rows.add(mapOf(
                     "name" to cursor.getString(nameIndex).orEmpty(),
                     "number" to cursor.getString(numberIndex).orEmpty(),
