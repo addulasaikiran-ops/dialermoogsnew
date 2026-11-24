@@ -29,8 +29,8 @@ void main() {
   testWidgets('home remains buildable at 130 percent text scale', (tester) async {
     await tester.pumpWidget(
       const MediaQuery(
-        data: const MediaQueryData(textScaler: TextScaler.linear(1.3)),
-        child: const MoogsPhoneApp(),
+        data: MediaQueryData(textScaler: TextScaler.linear(1.3)),
+        child: MoogsPhoneApp(),
       ),
     );
     await tester.pumpAndSettle();
