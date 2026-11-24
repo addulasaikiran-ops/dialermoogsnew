@@ -384,9 +384,10 @@ class _DialerHomePageState extends State<DialerHomePage> {
         ['1', '2', '3'], ['4', '5', '6'],
         ['7', '8', '9'], ['*', '0', '#'],
       ];
-      return Padding(
+      return SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(20, 6, 20, 8),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
             const SizedBox(height: 4),
             NumberDisplay(number: _number),
@@ -414,7 +415,7 @@ class _DialerHomePageState extends State<DialerHomePage> {
               ),
               const SizedBox(height: 8),
             ],
-            const Spacer(),
+            const SizedBox(height: 8),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
