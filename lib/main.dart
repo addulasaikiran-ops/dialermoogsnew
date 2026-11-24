@@ -66,6 +66,9 @@ class MoogsTheme {
             shadow: Color(0x1F000000), text: Color(0xFF1B1D22),
             textMuted: Color(0xFF55565C), accentA: Color(0xFF8CCBFA),
             accentB: Color(0xFF2FD07A),
+            call: Color(0xFF2FD07A), callGradient: [Color(0xFF64EBA4), Color(0xFF2FD07A), Color(0xFF159653)],
+            end: Color(0xFFFF3B4E), missed: Color(0xFFFF3B4E),
+            logoSilver: Color(0xFFE8EEF7), logoBlue: Color(0xFF8CCBFA), logoSlate: Color(0xFF5F7FA8),
           ),
         ],
       );
@@ -82,7 +85,7 @@ class MoogsTheme {
         extensions: const [
           MoogTokens(
             bgTop: Color(0xFF0A0D14), bgBottom: Color(0xFF151A26),
-            orbs: [Color(0xFF8CCBFA), Color(0xFFB9A7E8), Color(0xFFB85C68)],
+            orbs: [Color(0xFF8CCBFA), Color(0xFFB9A7E8), Color(0xFF477F91)],
             glassFillHi: Color(0x24FFFFFF), glassFillLo: Color(0x0FFFFFFF),
             borderHi: Color(0x59FFFFFF), borderLo: Color(0x1AFFFFFF),
             shadow: Color(0x66000000), text: Color(0xFFEEF1F7),
