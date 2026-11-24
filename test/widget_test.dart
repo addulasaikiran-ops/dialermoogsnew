@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:moogs_phone/app.dart';
+import 'package:moogs_phone/main.dart';
 
 void main() {
   testWidgets('shows Moog\'s Phone with four working navigation destinations', (tester) async {
