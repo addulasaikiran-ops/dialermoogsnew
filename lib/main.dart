@@ -346,7 +346,9 @@ class _DialerHomePageState extends State<DialerHomePage> {
   Widget _buildKeypad(Color foreground) => LayoutBuilder(
     builder: (context, constraints) {
       const gap = 14.0;
-      final keySize = math.min((constraints.maxWidth - 2 * gap) / 3, 84.0);
+      final widthKeySize = math.min((constraints.maxWidth - 2 * gap) / 3, 84.0);
+      final heightKeySize = (constraints.maxHeight - 280) / 4;
+      final keySize = math.max(36.0, math.min(widthKeySize, heightKeySize));
       final rows = [
         ['1', '2', '3'], ['4', '5', '6'],
         ['7', '8', '9'], ['*', '0', '#'],
