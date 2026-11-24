@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'core/theme/tokens.dart';
+import 'core/motion.dart';
 import 'core/widgets/moog_logo.dart';
 import 'features/dialer/keypad_key.dart';
 import 'features/dialer/number_display.dart';
@@ -464,7 +465,19 @@ class _DialerHomePageState extends State<DialerHomePage> {
       Expanded(child: _loading ? const Center(child: CircularProgressIndicator()) :
         _loadError != null ? _errorPanel(_loadError!, _selectedTab) :
         entries.isEmpty ? _emptyPanel('Nothing here yet', empty) :
-        ListView.builder(itemCount: entries.length, itemBuilder: (context, index) => _entryTile(entries[index], leading: showCallType ? _callTypeIcon(entries[index].callType) : icon, favoriteButton: !showCallType))),
+        ListView.builder(
+          itemCount: entries.length,
+          itemBuilder: (context, index) {
+            final tile = _entryTile(
+              entries[index],
+              leading: showCallType ? _callTypeIcon(entries[index].callType) : icon,
+              favoriteButton: !showCallType,
+            );
+            return showCallType
+                ? _StaggeredEntry(index: index, child: tile)
+                : tile;
+          },
+        )),
     ]);
 
   Widget _entryTile(PhoneEntry entry, {IconData? leading, bool favoriteButton = false}) {
@@ -506,6 +519,69 @@ class _DialerHomePageState extends State<DialerHomePage> {
       const SizedBox(height: 14), OutlinedButton(onPressed: () => _loadTab(tab), child: const Text('Try again')),
     ]),
   ));
+}
+
+class _StaggeredEntry extends StatefulWidget {
+  const _StaggeredEntry({required this.index, required this.child});
+
+  final int index;
+  final Widget child;
+
+  @override
+  State<_StaggeredEntry> createState() => _StaggeredEntryState();
+}
+
+class _StaggeredEntryState extends State<_StaggeredEntry> {
+  Timer? _delay;
+  bool _visible = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _scheduleEntrance();
+  }
+
+  @override
+  void didUpdateWidget(covariant _StaggeredEntry oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.index != widget.index) {
+      _delay?.cancel();
+      _visible = false;
+      _scheduleEntrance();
+    }
+  }
+
+  void _scheduleEntrance() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (MediaQuery.disableAnimationsOf(context) || widget.index == 0) {
+        setState(() => _visible = true);
+      } else {
+        _delay = Timer(Duration(milliseconds: widget.index * 30), () {
+          if (mounted) setState(() => _visible = true);
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _delay?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AnimatedOpacity(
+        opacity: _visible ? 1 : 0,
+        duration: moogMs(context, 320),
+        curve: Curves.easeOutBack,
+        child: AnimatedSlide(
+          offset: _visible ? Offset.zero : const Offset(0, .06),
+          duration: moogMs(context, 320),
+          curve: Curves.easeOutBack,
+          child: widget.child,
+        ),
+      );
 }
 
 class CallScreen extends StatefulWidget {
