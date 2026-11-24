@@ -157,8 +157,7 @@ class _DialerHomePageState extends State<DialerHomePage> {
   Widget build(BuildContext context) {
     final call = _call;
     if (call != null) return CallScreen(key: const ValueKey('call-screen'), call: call);
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final foreground = dark ? context.moog.text;
+    final foreground = context.moog.text;
     return Scaffold(
       body: SafeArea(
         child: Column(children: [
@@ -167,7 +166,7 @@ class _DialerHomePageState extends State<DialerHomePage> {
             child: Row(children: [
               Container(width: 40, height: 40,
                 decoration: BoxDecoration(shape: BoxShape.circle, color: context.moog.accentA.withValues(alpha: .16), border: Border.all(color: context.moog.accentA.withValues(alpha: .5))),
-                child: const Icon(Icons.call_rounded, color: context.moog.accentA)),
+                child: Icon(Icons.call_rounded, color: context.moog.accentA)),
               const SizedBox(width: 12),
               Expanded(child: Text("Moog's Phone", style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700, letterSpacing: -.5))),
               IconButton(
