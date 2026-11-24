@@ -28,12 +28,17 @@ void main() {
 
   testWidgets('home remains buildable at 130 percent text scale', (tester) async {
     await tester.pumpWidget(
-      const MediaQuery(
-        data: MediaQueryData(textScaler: TextScaler.linear(1.3)),
-        child: MoogsPhoneApp(),
+      MaterialApp(
+        theme: MoogsTheme.light,
+        home: MediaQuery(
+          data: MediaQueryData(textScaler: TextScaler.linear(1.3)),
+          child: const DialerHomePage(),
+        ),
       ),
     );
-    await tester.pumpAndSettle();
+    // AuroraBackdrop intentionally animates continuously; one frame is enough
+    // to verify layout without waiting for an animation that never settles.
+    await tester.pump(const Duration(milliseconds: 100));
     expect(find.text("Moog's Phone"), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
