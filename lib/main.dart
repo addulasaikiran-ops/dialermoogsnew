@@ -257,6 +257,7 @@ class _DialerHomePageState extends State<DialerHomePage> with WidgetsBindingObse
     final seenAt = DateTime.now().millisecondsSinceEpoch;
     await PhoneDataBridge.setRecentsLastSeenMillis(seenAt);
     moogMissedCount.value = 0;
+    if (mounted) setState(() {});
   }
 
   Future<void> _loadTab(int tab, {bool askPermission = true}) async {
