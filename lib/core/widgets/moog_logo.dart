@@ -23,8 +23,8 @@ class MoogLogo extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = context.moog;
-    final normal = monochrome ? tokens.text : tokens.accentA;
-    const missedColor = Color(0xFFFF3B4E);
+    final normal = monochrome ? tokens.text : tokens.logoSilver;
+    final missedColor = tokens.missed;
 
     return ValueListenableBuilder<int>(
       valueListenable: moogMissedCount,
@@ -42,7 +42,7 @@ class MoogLogo extends StatelessWidget {
             final primary = animatedColor ?? normal;
             final secondary = monochrome
                 ? primary
-                : (missed ? const Color(0xFFE77B78) : tokens.accentB);
+                : (missed ? tokens.missed : tokens.logoSlate);
             return SizedBox(
               width: size,
               height: size,
@@ -56,7 +56,7 @@ class MoogLogo extends StatelessWidget {
                         secondary: secondary,
                         highlight: monochrome
                             ? primary.withValues(alpha: .45)
-                            : Colors.white.withValues(alpha: .78),
+                            : tokens.logoBlue.withValues(alpha: .78),
                         missed: missed && !monochrome,
                       ),
                     ),
@@ -90,7 +90,7 @@ class _MissedCountBadge extends StatelessWidget {
       constraints: BoxConstraints(minWidth: diameter, minHeight: diameter),
       padding: EdgeInsets.symmetric(horizontal: size * .045),
       decoration: BoxDecoration(
-        color: const Color(0xFFFF3B4E),
+        color: context.moog.missed,
         borderRadius: BorderRadius.circular(diameter),
         border: Border.all(
           color: Theme.of(context).scaffoldBackgroundColor,
@@ -101,7 +101,7 @@ class _MissedCountBadge extends StatelessWidget {
       child: Text(
         count > 99 ? '99+' : '$count',
         style: TextStyle(
-          color: Colors.white,
+          color: context.moog.onMissed,
           fontSize: size * .18,
           height: 1,
           fontWeight: FontWeight.w700,
@@ -151,7 +151,7 @@ class _MoogLogoPainter extends CustomPainter {
         ..strokeWidth = scale * .15
         ..strokeCap = StrokeCap.round
         ..strokeJoin = StrokeJoin.round
-        ..color = const Color(0xFFFF3B4E).withValues(alpha: .16)
+        ..color = primary.withValues(alpha: .16)
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5);
       canvas.drawPath(path, glow);
     }
