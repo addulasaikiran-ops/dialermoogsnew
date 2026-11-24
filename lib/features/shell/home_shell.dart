@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../core/theme/theme.dart';
+import '../../core/theme/tokens.dart';
 import '../../telecom/call_snapshot.dart';
 import '../../telecom/telecom_bridge.dart';
 import '../call/call_screen.dart';
@@ -226,7 +226,7 @@ class _DialerHomePageState extends State<DialerHomePage> {
         InkWell(onTap: _placeCall, customBorder: const CircleBorder(), child: Container(
           width: 60, height: 60, decoration: BoxDecoration(shape: BoxShape.circle, color: context.moog.accentB,
             boxShadow: [BoxShadow(color: context.moog.accentB.withValues(alpha: .22), blurRadius: 16, offset: const Offset(0, 5))]),
-          child: const Icon(Icons.call_rounded, color: Theme.of(context).colorScheme.onPrimary, size: 28))),
+          child: Icon(Icons.call_rounded, color: Theme.of(context).colorScheme.onPrimary, size: 28))),
         SizedBox(width: 64, child: IconButton(
           tooltip: 'Delete last digit',
           onPressed: _number.isEmpty ? null : () => setState(() => _number = _number.substring(0, _number.length - 1)),
@@ -274,7 +274,7 @@ class _DialerHomePageState extends State<DialerHomePage> {
       trailing: Row(mainAxisSize: MainAxisSize.min, children: [
         if (favoriteButton) IconButton(icon: Icon(isFavorite ? Icons.star_rounded : Icons.star_border_rounded, color: isFavorite ? Colors.amber : null),
           onPressed: () => _toggleFavorite(entry)),
-        IconButton(icon: const Icon(Icons.call_rounded, color: context.moog.accentB), onPressed: () => _dialEntry(entry)),
+        IconButton(icon: Icon(Icons.call_rounded, color: context.moog.accentB), onPressed: () => _dialEntry(entry)),
       ]),
       onTap: () => _dialEntry(entry),
     );
@@ -297,7 +297,7 @@ class _DialerHomePageState extends State<DialerHomePage> {
 
   Widget _errorPanel(String message, int tab) => Center(child: Padding(
     padding: const EdgeInsets.all(28), child: Column(mainAxisSize: MainAxisSize.min, children: [
-      const Icon(Icons.lock_outline_rounded, size: 38, color: context.moog.accentA),
+      Icon(Icons.lock_outline_rounded, size: 38, color: context.moog.accentA),
       const SizedBox(height: 12), Text(message, textAlign: TextAlign.center),
       const SizedBox(height: 14), OutlinedButton(onPressed: () => _loadTab(tab), child: const Text('Try again')),
     ]),
