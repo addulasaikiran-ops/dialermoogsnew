@@ -239,6 +239,7 @@ class _DialerHomePageState extends State<DialerHomePage> {
   String _recentFilter = 'All';
 
   Future<void> _loadTab(int tab, {bool askPermission = true}) async {
+    if (tab == 1) moogMissedCount.value = 0;
     setState(() { _selectedTab = tab; _loading = true; _loadError = null; });
     try {
       if (tab == 0 || tab == 2) {
@@ -253,7 +254,6 @@ class _DialerHomePageState extends State<DialerHomePage> {
           throw PlatformException(code: 'CALL_LOG_PERMISSION', message: 'Allow call history access to show recent calls.');
         }
         final recent = await PhoneDataBridge.recents();
-        moogMissedCount.value = 0;
         if (mounted) setState(() { _recents = recent; _recentFilter = 'All'; });
       }
     } on PlatformException catch (error) {
@@ -608,13 +608,6 @@ class _DialerHomePageState extends State<DialerHomePage> {
     if (difference.inDays < 7) return '${difference.inDays}d ago';
     return '${(difference.inDays / 7).floor()}w ago';
   }
-
-  IconData _callTypeIcon(int type) => switch (type) {
-    3 => Icons.call_missed_rounded,
-    2 => Icons.call_made_rounded,
-    1 => Icons.call_received_rounded,
-    _ => Icons.call_rounded,
-  };
 
   Widget _emptyPanel(String title, String message) => Center(child: Padding(
     padding: const EdgeInsets.all(28), child: Column(mainAxisSize: MainAxisSize.min, children: [
