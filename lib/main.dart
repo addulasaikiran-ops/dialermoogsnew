@@ -3,6 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'core/theme/tokens.dart';
+import 'core/widgets/aurora_backdrop.dart';
+
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   runApp(const MoogsPhoneApp());
@@ -40,6 +43,17 @@ class MoogsTheme {
           surface: const Color(0xFFFAF9F6),
         ),
         useMaterial3: true,
+        extensions: const [
+          MoogTokens(
+            bgTop: Color(0xFFF4F1EC), bgBottom: Color(0xFFE9E6F0),
+            orbs: [Color(0xFF8CCBFA), Color(0xFFB9A7E8), Color(0xFFF0BFA8)],
+            glassFillHi: Color(0xB3FFFFFF), glassFillLo: Color(0x73FFFFFF),
+            borderHi: Color(0xE6FFFFFF), borderLo: Color(0x33FFFFFF),
+            shadow: Color(0x1F000000), text: Color(0xFF1B1D22),
+            textMuted: Color(0x991B1D22), accentA: Color(0xFF8CCBFA),
+            accentB: Color(0xFF2FD07A),
+          ),
+        ],
       );
 
   static ThemeData get dark => ThemeData(
@@ -51,6 +65,17 @@ class MoogsTheme {
           surface: const Color(0xFF151A26),
         ),
         useMaterial3: true,
+        extensions: const [
+          MoogTokens(
+            bgTop: Color(0xFF0A0D14), bgBottom: Color(0xFF151A26),
+            orbs: [Color(0xFF8CCBFA), Color(0xFFB9A7E8), Color(0xFFB85C68)],
+            glassFillHi: Color(0x24FFFFFF), glassFillLo: Color(0x0FFFFFFF),
+            borderHi: Color(0x59FFFFFF), borderLo: Color(0x1AFFFFFF),
+            shadow: Color(0x66000000), text: Color(0xFFEEF1F7),
+            textMuted: Color(0x99EEF1F7), accentA: Color(0xFF8CCBFA),
+            accentB: Color(0xFF2FD07A),
+          ),
+        ],
       );
 }
 
@@ -272,8 +297,13 @@ class _DialerHomePageState extends State<DialerHomePage> {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final foreground = dark ? Colors.white : const Color(0xFF20232B);
     return Scaffold(
-      body: SafeArea(
-        child: Column(children: [
+      backgroundColor: Colors.transparent,
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          const AuroraBackdrop(),
+          SafeArea(
+            child: Column(children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 12, 16, 8),
             child: Row(children: [
@@ -289,8 +319,10 @@ class _DialerHomePageState extends State<DialerHomePage> {
               ),
             ]),
           ),
-          Expanded(child: _buildSelectedContent(foreground)),
-        ]),
+              Expanded(child: _buildSelectedContent(foreground)),
+            ]),
+          ),
+        ],
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedTab,
@@ -491,8 +523,13 @@ class _CallScreenState extends State<CallScreen> {
           };
 
     return Scaffold(
-      body: SafeArea(
-        child: Padding(
+      backgroundColor: Colors.transparent,
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          const AuroraBackdrop(),
+          SafeArea(
+            child: Padding(
           padding: const EdgeInsets.fromLTRB(28, 26, 28, 24),
           child: Column(
             children: [
@@ -614,8 +651,9 @@ class _CallScreenState extends State<CallScreen> {
                         color: Theme.of(context).colorScheme.onSurface.withValues(alpha: .4),
                       )),
             ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
