@@ -15,10 +15,19 @@ class MoogTokens extends ThemeExtension<MoogTokens> {
     required this.textMuted,
     required this.accentA,
     required this.accentB,
+    required this.call,
+    required this.callGradient,
+    required this.end,
+    required this.missed,
+    required this.logoSilver,
+    required this.logoBlue,
+    required this.logoSlate,
   });
 
   final Color bgTop, bgBottom, glassFillHi, glassFillLo, borderHi, borderLo;
   final Color shadow, text, textMuted, accentA, accentB;
+  final Color call, end, missed, logoSilver, logoBlue, logoSlate;
+  final List<Color> callGradient;
   final List<Color> orbs;
 
   @override
@@ -26,7 +35,8 @@ class MoogTokens extends ThemeExtension<MoogTokens> {
     Color? bgTop, Color? bgBottom, List<Color>? orbs,
     Color? glassFillHi, Color? glassFillLo, Color? borderHi,
     Color? borderLo, Color? shadow, Color? text, Color? textMuted,
-    Color? accentA, Color? accentB,
+    Color? accentA, Color? accentB, Color? call, List<Color>? callGradient,
+    Color? end, Color? missed, Color? logoSilver, Color? logoBlue, Color? logoSlate,
   }) => MoogTokens(
     bgTop: bgTop ?? this.bgTop,
     bgBottom: bgBottom ?? this.bgBottom,
@@ -40,6 +50,13 @@ class MoogTokens extends ThemeExtension<MoogTokens> {
     textMuted: textMuted ?? this.textMuted,
     accentA: accentA ?? this.accentA,
     accentB: accentB ?? this.accentB,
+    call: call ?? this.call,
+    callGradient: callGradient ?? this.callGradient,
+    end: end ?? this.end,
+    missed: missed ?? this.missed,
+    logoSilver: logoSilver ?? this.logoSilver,
+    logoBlue: logoBlue ?? this.logoBlue,
+    logoSlate: logoSlate ?? this.logoSlate,
   );
 
   @override
@@ -64,6 +81,13 @@ class MoogTokens extends ThemeExtension<MoogTokens> {
       textMuted: Color.lerp(textMuted, other.textMuted, t)!,
       accentA: Color.lerp(accentA, other.accentA, t)!,
       accentB: Color.lerp(accentB, other.accentB, t)!,
+      call: Color.lerp(call, other.call, t)!,
+      callGradient: List<Color>.generate(3, (i) => Color.lerp(callGradient[i], other.callGradient[i], t)!),
+      end: Color.lerp(end, other.end, t)!,
+      missed: Color.lerp(missed, other.missed, t)!,
+      logoSilver: Color.lerp(logoSilver, other.logoSilver, t)!,
+      logoBlue: Color.lerp(logoBlue, other.logoBlue, t)!,
+      logoSlate: Color.lerp(logoSlate, other.logoSlate, t)!,
     );
   }
 }
