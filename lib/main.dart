@@ -246,7 +246,6 @@ class _DialerHomePageState extends State<DialerHomePage> with WidgetsBindingObse
   List<PhoneEntry> _recents = const [];
   List<PhoneEntry> _favorites = const [];
   String _recentFilter = 'All';
-  int _recentsLastSeenMillis = 0;
 
   Future<void> _loadTab(int tab, {bool askPermission = true}) async {
     setState(() { _selectedTab = tab; _loading = true; _loadError = null; });
@@ -264,7 +263,6 @@ class _DialerHomePageState extends State<DialerHomePage> with WidgetsBindingObse
         }
         final seenAt = DateTime.now().millisecondsSinceEpoch;
         await PhoneDataBridge.setRecentsLastSeenMillis(seenAt);
-        _recentsLastSeenMillis = seenAt;
         moogMissedCount.value = 0;
         final recent = await PhoneDataBridge.recents();
         if (mounted) setState(() { _recents = recent; _recentFilter = 'All'; });
@@ -288,11 +286,10 @@ class _DialerHomePageState extends State<DialerHomePage> with WidgetsBindingObse
           : recent.where((entry) =>
               entry.callType == 3 && entry.dateMillis > lastSeen).length;
       if (!mounted) return;
+      moogMissedCount.value = missed;
       setState(() {
-        _recentsLastSeenMillis = lastSeen;
         _recents = recent;
       });
-      moogMissedCount.value = missed;
     } on PlatformException {
       // Permission may be revoked between the permission check and the query.
     }
