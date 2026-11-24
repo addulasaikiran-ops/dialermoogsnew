@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/tokens.dart';
+import '../../core/motion.dart';
 import '../../core/widgets/glass_surface.dart';
 
 class GlassNavBar extends StatelessWidget {
@@ -34,7 +35,7 @@ class GlassNavBar extends StatelessWidget {
               children: [
                 AnimatedAlign(
                   alignment: Alignment(-1 + (selectedIndex * 2 / 3), 0),
-                  duration: const Duration(milliseconds: 320),
+                  duration: moogMs(context, 320),
                   curve: Curves.easeOutBack,
                   child: SizedBox(
                     width: indicatorWidth,

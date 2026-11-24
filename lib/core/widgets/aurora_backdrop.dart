@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../theme/tokens.dart';
+import '../motion.dart';
 
 /// A low-cost animated atmosphere for Moog's Phone screens.
 ///
@@ -25,13 +26,15 @@ class _AuroraBackdropState extends State<AuroraBackdrop>
     _drift = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 40),
-    )..repeat();
+    );
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (MediaQuery.disableAnimationsOf(context)) {
+    final duration = moogMs(context, 40000);
+    _drift.duration = duration;
+    if (duration == Duration.zero) {
       _drift.stop();
       _drift.value = 0;
     } else if (!_drift.isAnimating) {
