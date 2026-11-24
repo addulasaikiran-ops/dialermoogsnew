@@ -101,7 +101,7 @@ class _MissedCountBadge extends StatelessWidget {
       child: Text(
         count > 99 ? '99+' : '$count',
         style: TextStyle(
-          color: context.moog.text,
+          color: context.moog.onMissed,
           fontSize: size * .18,
           height: 1,
           fontWeight: FontWeight.w700,
