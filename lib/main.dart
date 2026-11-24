@@ -10,6 +10,7 @@ import 'core/widgets/moog_logo.dart';
 import 'features/dialer/keypad_key.dart';
 import 'features/dialer/number_display.dart';
 import 'core/widgets/glass_surface.dart';
+import 'features/shell/home_shell.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -303,59 +304,30 @@ class _DialerHomePageState extends State<DialerHomePage> {
     if (call != null) return CallScreen(key: const ValueKey('call-screen'), call: call);
     final dark = Theme.of(context).brightness == Brightness.dark;
     final foreground = dark ? Colors.white : const Color(0xFF20232B);
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          const AuroraBackdrop(),
-          SafeArea(
-            child: Column(children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 12, 16, 8),
-            child: Row(children: [
-              const MoogLogo(size: 40),
-              const SizedBox(width: 12),
-              Expanded(child: Text("Moog's Phone", style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700, letterSpacing: -.5))),
-              IconButton(
-                tooltip: 'Set as default dialer',
-                onPressed: _requestingRole ? null : _requestDefaultDialer,
-                icon: _requestingRole ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.settings_phone_rounded),
-              ),
-            ]),
+    return HomeShell(
+      selectedIndex: _selectedTab,
+      onSelected: _loadTab,
+      missedCount: moogMissedCount.value,
+      header: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 12, 16, 8),
+        child: Row(children: [
+          const MoogLogo(size: 40),
+          const SizedBox(width: 12),
+          Expanded(child: Text("Moog's Phone", style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700, letterSpacing: -.5))),
+          IconButton(
+            tooltip: 'Set as default dialer',
+            onPressed: _requestingRole ? null : _requestDefaultDialer,
+            icon: _requestingRole ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.settings_phone_rounded),
           ),
-              Expanded(child: _buildSelectedContent(foreground)),
-            ]),
-          ),
-        ],
+        ]),
       ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _selectedTab,
-        onDestinationSelected: (index) => _loadTab(index),
-        height: 68,
-        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.star_border_rounded), selectedIcon: Icon(Icons.star_rounded), label: 'Favorites'),
-          NavigationDestination(icon: Icon(Icons.history_rounded), selectedIcon: Icon(Icons.history_rounded), label: 'Recents'),
-          NavigationDestination(icon: Icon(Icons.contacts_outlined), selectedIcon: Icon(Icons.contacts_rounded), label: 'Contacts'),
-          NavigationDestination(icon: Icon(Icons.dialpad_rounded), selectedIcon: Icon(Icons.dialpad_rounded), label: 'Keypad'),
-        ],
-      ),
+      pages: [
+        Padding(padding: const EdgeInsets.only(bottom: 96), child: _buildListScreen('Favorites', _favorites, Icons.star_rounded, empty: 'Your favorite contacts will appear here.')),
+        Padding(padding: const EdgeInsets.only(bottom: 96), child: _buildListScreen('Recents', _recents, Icons.call_made_rounded, showCallType: true, empty: 'Your recent calls will appear here.')),
+        Padding(padding: const EdgeInsets.only(bottom: 96), child: _buildContactsScreen()),
+        Padding(padding: const EdgeInsets.only(bottom: 96), child: _buildKeypad(foreground)),
+      ],
     );
-  }
-
-  Widget _buildSelectedContent(Color foreground) {
-    // Build only the selected page. This keeps first launch lighter on entry-level devices.
-    switch (_selectedTab) {
-      case 0:
-        return _buildListScreen('Favorites', _favorites, Icons.star_rounded, empty: 'Your favorite contacts will appear here.');
-      case 1:
-        return _buildListScreen('Recents', _recents, Icons.call_made_rounded, showCallType: true, empty: 'Your recent calls will appear here.');
-      case 2:
-        return _buildContactsScreen();
-      default:
-        return _buildKeypad(foreground);
-    }
   }
 
   static const _keyLabels = <String, String>{
