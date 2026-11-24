@@ -526,6 +526,7 @@ class _CallScreenState extends State<CallScreen> {
   Timer? _clock;
   int _elapsedSeconds = 0;
   bool _showKeypad = false;
+  String _enteredDigits = '';
 
   @override
   void initState() {
@@ -542,9 +543,7 @@ class _CallScreenState extends State<CallScreen> {
 
   void _updateElapsed() {
     final duration = widget.call.connectedDurationMillis;
-    if (mounted) {
-      setState(() => _elapsedSeconds = duration.clamp(0, 1 << 30) ~/ 1000);
-    }
+    if (mounted) setState(() => _elapsedSeconds = duration.clamp(0, 1 << 30) ~/ 1000);
   }
 
   @override
@@ -559,6 +558,13 @@ class _CallScreenState extends State<CallScreen> {
     return '$minutes:$seconds';
   }
 
+  String get _initials {
+    final parts = widget.call.title.trim().split(RegExp(r'\s+')).where((part) => part.isNotEmpty).toList();
+    if (parts.isEmpty) return '?';
+    if (parts.length == 1) return parts.first.characters.take(2).toString().toUpperCase();
+    return (parts.first.characters.first + parts.last.characters.first).toUpperCase();
+  }
+
   Future<void> _action(String name, [Map<String, Object?> args = const {}]) async {
     try {
       await TelecomBridge.act(name, args);
@@ -571,11 +577,17 @@ class _CallScreenState extends State<CallScreen> {
     }
   }
 
+  void _sendDigit(String digit) {
+    setState(() => _enteredDigits += digit);
+    _action('dtmf', {'digit': digit});
+  }
+
   @override
   Widget build(BuildContext context) {
     final call = widget.call;
     final incoming = call.isRinging && call.direction == 'incoming';
     final connected = call.isActive;
+    final t = context.moog;
     final subtitle = connected
         ? _time
         : switch (call.state) {
@@ -587,6 +599,91 @@ class _CallScreenState extends State<CallScreen> {
             _ => 'Call in progress',
           };
 
+    final controls = GlassSurface(
+      blur: true,
+      radius: 30,
+      padding: const EdgeInsets.fromLTRB(14, 16, 14, 16),
+      child: GridView.count(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        crossAxisCount: 3,
+        mainAxisSpacing: 12,
+        crossAxisSpacing: 6,
+        childAspectRatio: 1.05,
+        children: [
+          _CallControl(
+            icon: call.muted ? Icons.mic_off_rounded : Icons.mic_none_rounded,
+            label: call.muted ? 'Muted' : 'Mute',
+            selected: call.muted,
+            onTap: () => _action('mute', {'enabled': !call.muted}),
+          ),
+          _CallControl(
+            icon: Icons.dialpad_rounded,
+            label: 'Keypad',
+            onTap: () => setState(() => _showKeypad = true),
+          ),
+          _CallControl(
+            icon: call.speaker ? Icons.volume_up_rounded : Icons.volume_down_rounded,
+            label: 'Speaker',
+            selected: call.speaker,
+            onTap: () => _action('speaker', {'enabled': !call.speaker}),
+          ),
+          _CallControl(
+            icon: call.isHeld ? Icons.play_arrow_rounded : Icons.pause_rounded,
+            label: call.isHeld ? 'Resume' : 'Hold',
+            selected: call.isHeld,
+            enabled: call.canHold,
+            onTap: () => _action('hold', {'enabled': !call.isHeld}),
+          ),
+          const _CallControl(icon: Icons.bluetooth_rounded, label: 'Bluetooth', enabled: false),
+          const _CallControl(icon: Icons.person_outline_rounded, label: 'Contacts', enabled: false),
+        ],
+      ),
+    );
+
+    final keypad = GlassSurface(
+      blur: true,
+      radius: 30,
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            height: 28,
+            child: Center(
+              child: Text(
+                _enteredDigits.isEmpty ? 'Enter keypad digits' : _enteredDigits,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w300, letterSpacing: 2, color: t.text),
+              ),
+            ),
+          ),
+          const SizedBox(height: 6),
+          for (final row in const [
+            ['1', '2', '3'], ['4', '5', '6'], ['7', '8', '9'], ['*', '0', '#'],
+          ]) ...[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: row.map((digit) => KeypadKey(
+                digit: digit,
+                label: '',
+                size: 54,
+                onTap: () => _sendDigit(digit),
+                onLongPress: digit == '0' ? () => _sendDigit('+') : null,
+              )).toList(),
+            ),
+            const SizedBox(height: 6),
+          ],
+          TextButton.icon(
+            onPressed: () => setState(() => _showKeypad = false),
+            icon: const Icon(Icons.keyboard_hide_rounded, size: 18),
+            label: const Text('Hide keypad'),
+          ),
+        ],
+      ),
+    );
+
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Stack(
@@ -595,130 +692,95 @@ class _CallScreenState extends State<CallScreen> {
           const AuroraBackdrop(),
           SafeArea(
             child: Padding(
-          padding: const EdgeInsets.fromLTRB(28, 26, 28, 24),
-          child: Column(
-            children: [
-              const Spacer(flex: 2),
-              Container(
-                width: 116,
-                height: 116,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: MoogsTheme.ice.withValues(alpha: .14),
-                  border: Border.all(color: MoogsTheme.ice.withValues(alpha: .45), width: 1.2),
-                ),
-                child: const Icon(Icons.person_rounded, size: 64, color: MoogsTheme.ice),
-              ),
-              const SizedBox(height: 28),
-              Text(call.title,
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: -.6,
-                      )),
-              const SizedBox(height: 10),
-              Text(subtitle,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: .62),
-                        letterSpacing: .4,
-                      )),
-              const Spacer(flex: 2),
-              if (incoming) ...[
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    _RoundCallButton(
-                      icon: Icons.call_end_rounded,
-                      label: 'Decline',
-                      color: MoogsTheme.missed,
-                      onTap: () => _action('reject'),
-                    ),
-                    _RoundCallButton(
-                      icon: Icons.call_rounded,
-                      label: 'Answer',
-                      color: MoogsTheme.call,
-                      onTap: () => _action('answer'),
-                    ),
-                  ],
-                ),
-              ] else ...[
-                if (_showKeypad && connected)
-                  SizedBox(
-                    width: 240,
-                    child: GridView.count(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      crossAxisCount: 3,
-                      childAspectRatio: 1.3,
-                      children: ['1','2','3','4','5','6','7','8','9','*','0','#']
-                          .map((digit) => TextButton(
-                                onPressed: () => _action('dtmf', {'digit': digit}),
-                                child: Text(digit, style: Theme.of(context).textTheme.titleLarge),
-                              ))
-                          .toList(),
-                    ),
-                  )
-                else
-                  Wrap(
-                    alignment: WrapAlignment.center,
-                    spacing: 18,
-                    runSpacing: 18,
-                    children: [
-                      _CallControl(
-                        icon: call.muted ? Icons.mic_off_rounded : Icons.mic_none_rounded,
-                        label: call.muted ? 'Muted' : 'Mute',
-                        selected: call.muted,
-                        onTap: () => _action('mute', {'enabled': !call.muted}),
+              padding: const EdgeInsets.fromLTRB(24, 20, 24, 18),
+              child: Column(
+                children: [
+                  const Spacer(flex: 1),
+                  Container(
+                    width: 120,
+                    height: 120,
+                    padding: const EdgeInsets.all(1),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [t.borderHi, t.accentA.withValues(alpha: .24), t.borderLo],
                       ),
-                      _CallControl(
-                        icon: Icons.dialpad_rounded,
-                        label: 'Keypad',
-                        onTap: () => setState(() => _showKeypad = true),
+                    ),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: t.glassFillHi,
+                        border: Border.all(color: t.borderHi.withValues(alpha: .5), width: .5),
                       ),
-                      _CallControl(
-                        icon: call.speaker ? Icons.volume_up_rounded : Icons.volume_down_rounded,
-                        label: 'Speaker',
-                        selected: call.speaker,
-                        onTap: () => _action('speaker', {'enabled': !call.speaker}),
+                      child: Center(
+                        child: Text(_initials, style: TextStyle(fontSize: 36, fontWeight: FontWeight.w300, letterSpacing: 1, color: t.text)),
                       ),
-                      if (call.canHold)
-                        _CallControl(
-                          icon: call.isHeld ? Icons.play_arrow_rounded : Icons.pause_rounded,
-                          label: call.isHeld ? 'Resume' : 'Hold',
-                          selected: call.isHeld,
-                          onTap: () => _action('hold', {'enabled': !call.isHeld}),
-                        ),
-                    ],
+                    ),
                   ),
-                const SizedBox(height: 28),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    if (_showKeypad)
-                      IconButton(
-                        tooltip: 'Hide keypad',
-                        onPressed: () => setState(() => _showKeypad = false),
-                        icon: const Icon(Icons.keyboard_hide_rounded),
+                  const SizedBox(height: 20),
+                  Text(
+                    call.title,
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 34, height: 1.12, fontWeight: FontWeight.w300, letterSpacing: -.8, color: t.text),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w400,
+                      color: t.textMuted,
+                      letterSpacing: .35,
+                      fontFeatures: connected ? const [FontFeature.tabularFigures()] : null,
+                    ),
+                  ),
+                  const Spacer(flex: 1),
+                  if (incoming)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        _RoundCallButton(icon: Icons.call_end_rounded, label: 'Decline', color: MoogsTheme.missed, onTap: () => _action('reject')),
+                        _RoundCallButton(icon: Icons.call_rounded, label: 'Answer', color: MoogsTheme.call, onTap: () => _action('answer')),
+                      ],
+                    )
+                  else ...[
+                    AnimatedCrossFade(
+                      firstChild: controls,
+                      secondChild: keypad,
+                      crossFadeState: _showKeypad && connected ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+                      duration: const Duration(milliseconds: 260),
+                      sizeCurve: Curves.easeInOut,
+                    ),
+                    const SizedBox(height: 18),
+                    GlassSurface(
+                      radius: 999,
+                      blur: true,
+                      tint: MoogsTheme.missed.withValues(alpha: .88),
+                      shadow: true,
+                      child: InkWell(
+                        customBorder: const CircleBorder(),
+                        onTap: () {
+                          HapticFeedback.mediumImpact();
+                          _action('disconnect');
+                        },
+                        child: const SizedBox(
+                          width: 72,
+                          height: 72,
+                          child: Icon(Icons.call_end_rounded, color: Colors.white, size: 29),
+                        ),
                       ),
-                    _RoundCallButton(
-                      icon: Icons.call_end_rounded,
-                      label: 'End call',
-                      color: MoogsTheme.missed,
-                      onTap: () => _action('disconnect'),
                     ),
                   ],
-                ),
-              ],
-              const Spacer(),
-              Text("MOOG'S PHONE",
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        letterSpacing: 2.2,
-                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: .4),
-                      )),
-            ],
+                  const Spacer(),
+                  Text("MOOG'S PHONE", style: TextStyle(fontSize: 10, letterSpacing: 2.2, color: t.textMuted.withValues(alpha: .65))),
+                ],
+              ),
             ),
           ),
-        ),
         ],
       ),
     );
@@ -729,36 +791,45 @@ class _CallControl extends StatelessWidget {
   const _CallControl({
     required this.icon,
     required this.label,
-    required this.onTap,
+    this.onTap,
     this.selected = false,
+    this.enabled = true,
   });
+
   final IconData icon;
   final String label;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
   final bool selected;
+  final bool enabled;
 
   @override
-  Widget build(BuildContext context) => SizedBox(
-        width: 88,
-        child: Column(
-          children: [
-            Material(
-              color: selected
-                  ? MoogsTheme.ice.withValues(alpha: .25)
-                  : Theme.of(context).colorScheme.surface.withValues(alpha: .8),
-              shape: const CircleBorder(),
-              child: IconButton(
-                onPressed: onTap,
-                icon: Icon(icon),
-                iconSize: 25,
-                padding: const EdgeInsets.all(18),
-              ),
+  Widget build(BuildContext context) {
+    final t = context.moog;
+    return Opacity(
+      opacity: enabled ? 1 : .4,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Material(
+            color: selected ? t.accentA.withValues(alpha: .25) : t.glassFillHi,
+            shape: const CircleBorder(),
+            child: InkWell(
+              customBorder: const CircleBorder(),
+              onTap: enabled && onTap != null
+                  ? () {
+                      HapticFeedback.selectionClick();
+                      onTap!();
+                    }
+                  : null,
+              child: SizedBox(width: 54, height: 54, child: Icon(icon, size: 23, color: t.text)),
             ),
-            const SizedBox(height: 7),
-            Text(label, style: Theme.of(context).textTheme.labelMedium),
-          ],
-        ),
-      );
+          ),
+          const SizedBox(height: 6),
+          Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, color: t.textMuted)),
+        ],
+      ),
+    );
+  }
 }
 
 class _RoundCallButton extends StatelessWidget {
